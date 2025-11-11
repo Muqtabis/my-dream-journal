@@ -1,72 +1,130 @@
+/* --- Global Styles & Resets --- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: background 0.3s, color 0.3s;
+  min-height: 100vh;
 }
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+:root[data-theme='dark'] {
+  --color-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --color-card-bg: rgba(255, 255, 255, 0.08);
+  --color-input-bg: rgba(255, 255, 255, 0.1);
+  --color-text: #ffffff;
+  --color-accent: #4facfe;
+  --color-border: rgba(255, 255, 255, 0.1);
 }
-/* Add this to your src/index.css file */
-form.login-form, form.signup-form {
-  max-width: 400px;
-  margin: 40px auto;
-  padding: 20px;
-  background: #fff;
-  border-radius: 10px;
-  color: #333;
+:root[data-theme='light'] {
+  --color-bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --color-card-bg: rgba(255, 255, 255, 0.9);
+  --color-input-bg: rgba(0, 0, 0, 0.05);
+  --color-text: #333333;
+  --color-accent: #667eea;
+  --color-border: rgba(0, 0, 0, 0.1);
 }
-form label, form input {
-  display: block;
-}
-form input {
-  padding: 10px;
-  margin-top: 10px;
-  margin-bottom: 20px;
-  width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  box-sizing: border-box;
-}
-form button {
-  background: #4facfe;
-  color: #fff;
-  border: 0;
-  padding: 10px;
-  border-radius: 5px;
-  cursor: pointer;
-  width: 100%;
-  font-size: 16px;
-}
-/* Add this to your src/index.css file */
-header {
-  background: #fff;
-  color: #333;
-}
-header .container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 10px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-header a {
-  color: #333;
-  text-decoration: none;
-}
-header nav a {
-  padding: 10px;
-}
-div.error {
-  padding: 10px;
-  background: #ffefef;
-  border: 1px solid #e7195a;
-  color: #e7195a;
-  border-radius: 4px;
-  margin: 20px 0;
+button { cursor: pointer; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; padding: 10px 15px; }
+.container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+/* --- Navbar --- */
+header { background: var(--color-card-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; z-index: 100; }
+header .container { display: flex; justify-content: space-between; align-items: center; height: 70px; }
+header a { color: var(--color-text); text-decoration: none; }
+header h1 { font-size: 1.5rem; }
+header nav { display: flex; align-items: center; gap: 15px; }
+header nav span { opacity: 0.8; }
+header nav a, header nav button { text-decoration: none; padding: 8px 15px; border-radius: 8px; transition: background 0.2s; }
+header nav a:hover { background: var(--color-input-bg); }
+header nav button { background: var(--color-accent); color: white; }
+/* --- Login/Signup Forms --- */
+.login-form, .signup-form { max-width: 400px; margin: 40px auto; padding: 30px; background: var(--color-card-bg); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+.login-form h3, .signup-form h3 { font-size: 2rem; margin-bottom: 20px; text-align: center; }
+.login-form label, .signup-form label { display: block; margin-bottom: 5px; opacity: 0.8; }
+.login-form input, .signup-form input { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text); font-size: 1rem; }
+.login-form button, .signup-form button { width: 100%; padding: 12px; background: var(--color-accent); color: white; }
+div.error { padding: 10px; background: #ffefef; border: 1px solid #e7195a; color: #e7195a; border-radius: 4px; margin: 20px 0; }
+/* --- Homepage & Stats Page Layout --- */
+.homepage-container, .stats-page-container { width: 100%; max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+.page-header { background: var(--color-card-bg); backdrop-filter: blur(10px); border-radius: 20px; padding: 30px; margin-bottom: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); position: relative; }
+.page-header h1 { font-size: 3rem; margin: 0 0 10px 0; background: linear-gradient(45deg, #4facfe, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(79, 172, 254, 0.5); }
+.page-header p { margin: 0; opacity: 0.8; font-size: 1.1rem; }
+.theme-toggle { position: absolute; top: 20px; right: 20px; background: var(--color-accent); color: white; border-radius: 25px; }
+/* --- Controls Bar --- */
+.controls { background: var(--color-card-bg); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+.controls input[type="text"] { flex-grow: 1; min-width: 250px; }
+.controls input, .controls select { padding: 12px; border-radius: 25px; border: none; background: var(--color-input-bg); color: var(--color-text); font-size: 1rem; }
+.controls button { background: var(--color-accent); color: white; border-radius: 25px; padding: 12px 20px; white-space: nowrap; }
+.controls .btn-export { background: #28a745; }
+/* --- Dream Input Form --- */
+.dream-form { background: var(--color-card-bg); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+.dream-form h2 { margin: 0 0 20px 0; text-align: center; font-size: 1.8rem; }
+.dream-form-grid { display: grid; gap: 15px; grid-template-columns: 1fr 1fr; }
+.dream-form-grid input, .dream-form-grid select { padding: 15px; border-radius: 15px; border: none; background: var(--color-input-bg); color: var(--color-text); font-size: 1rem; }
+.mood-selector { margin: 15px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mood-selector span { font-weight: bold; }
+.mood-selector button { background: transparent; border: 2px solid var(--color-border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.2rem; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.mood-selector button.active { background: var(--color-accent); border-color: var(--color-accent); }
+.checkbox-group { margin: 15px 0; display: flex; gap: 20px; flex-wrap: wrap; }
+.checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.dream-form textarea, .dream-form input[type="text"] { width: 100%; padding: 15px; border-radius: 15px; border: none; background: var(--color-input-bg); color: var(--color-text); font-size: 1rem; resize: vertical; margin-bottom: 15px; }
+.dream-form .btn-submit { width: 100%; padding: 15px; background: linear-gradient(45deg, #4facfe, #00f2fe); border-radius: 15px; color: white; font-size: 1.2rem; box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
+/* --- Dream List --- */
+.dream-list { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
+.dream-card { background: var(--color-card-bg); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); position: relative; padding-top: 60px; }
+.dream-card .btn-delete, .dream-card .btn-edit, .dream-card .btn-ai { position: absolute; top: 15px; border: none; border-radius: 50%; width: 35px; height: 35px; color: white; font-size: 1.2rem; line-height: 35px; text-align: center; padding: 0; }
+.dream-card .btn-delete { right: 15px; background: #ff4757; }
+.dream-card .btn-edit { right: 60px; background: var(--color-accent); font-size: 0.9rem; }
+.dream-card .btn-ai { right: 105px; background: #00c497; font-size: 1.2rem; }
+.dream-card-header h3 { margin: 0 0 5px 0; font-size: 1.4rem; }
+.dream-card-header .dream-meta { font-size: 0.9rem; opacity: 0.7; margin-bottom: 15px; }
+.dream-card p { line-height: 1.6; margin-bottom: 15px; white-space: pre-wrap; }
+.dream-tags { margin-bottom: 15px; }
+.dream-tags span { display: inline-block; background: var(--color-accent); color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; margin: 2px 5px 2px 0; }
+.dream-symbols { background: var(--color-input-bg); border-radius: 10px; padding: 15px; margin-top: 15px; }
+.dream-symbols h4 { margin: 0 0 10px 0; font-size: 1rem; }
+.dream-symbols div { margin-bottom: 8px; font-size: 0.9rem; }
+.dream-symbols strong { color: var(--color-accent); }
+/* --- Empty States --- */
+.empty-state { text-align: center; padding: 50px; opacity: 0.7; }
+.empty-state div { font-size: 3rem; margin-bottom: 10px; }
+/* --- Edit/AI Modal --- */
+.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+.modal-content { background: var(--color-bg); color: var(--color-text); padding: 30px; border-radius: 20px; width: 100%; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--color-border); }
+.modal-content h2 { margin: 0 0 20px 0; text-align: center; }
+.modal-content form { display: flex; flex-direction: column; gap: 15px; }
+.modal-content label { font-weight: bold; opacity: 0.8; font-size: 0.9rem; }
+.modal-content input[type="text"], .modal-content select, .modal-content textarea { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--color-input-bg); color: var(--color-text); font-size: 1rem; }
+.modal-content .mood-buttons button { background: transparent; border: 2px solid var(--color-border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.2rem; cursor: pointer; margin-right: 10px; display: flex; align-items: center; justify-content: center; }
+.modal-content .mood-buttons button.active { border-color: var(--color-accent); background: var(--color-accent); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.modal-actions button { padding: 10px 20px; }
+.modal-actions .btn-secondary { background: var(--color-input-bg); color: var(--color-text); }
+.modal-actions .btn-primary { background: var(--color-accent); color: white; }
+/* --- Interpretation Modal Specifics --- */
+.interpretation-content { min-height: 100px; max-height: 400px; overflow-y: auto; background: var(--color-input-bg); border-radius: 10px; padding: 20px; line-height: 1.6; }
+.loading-spinner { display: flex; justify-content: center; align-items: center; height: 100px; font-size: 1.1rem; opacity: 0.8; }
+/* --- Stats Page Styles --- */
+.stats-page-container .stats-content { display: grid; gap: 30px; }
+.stats-page-container .stats-card { background: var(--color-card-bg); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+.stats-page-container .stats-card h2 { font-size: 2rem; margin-bottom: 5px; border-bottom: 2px solid var(--color-border); padding-bottom: 10px; }
+.stats-page-container .card-description { opacity: 0.7; margin-bottom: 20px; }
+.empty-chart-message { text-align: center; padding: 30px; opacity: 0.6; }
+.loading-state { text-align: center; padding: 50px; font-size: 1.5rem; color: var(--color-accent); }
+.error-state { text-align: center; padding: 50px; color: #e7195a; background: #ffefef; border-radius: 10px; margin: 20px; }
+.heatmap-card { overflow-x: auto; }
+.react-calendar-heatmap rect { rx: 3px; ry: 3px; shape-rendering: geometricPrecision; transition: fill 0.3s; }
+.react-calendar-heatmap .color-empty { fill: var(--color-input-bg); }
+.react-calendar-heatmap .color-scale-1 { fill: #1c365f; } /* Mood 0 */
+.react-calendar-heatmap .color-scale-2 { fill: #3362a7; } /* Mood 1 */
+.react-calendar-heatmap .color-scale-3 { fill: #4facfe; } /* Mood 2 */
+.react-calendar-heatmap .color-scale-4 { fill: #00e08f; } /* Mood 3 */
+.react-calendar-heatmap .color-scale-5 { fill: #ffd700; } /* Mood 4 */
+.react-calendar-heatmap .color-scale-6 { fill: #ff6347; } /* Mood 5 */
+.tag-cloud-display { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; min-height: 200px; }
+.tag-item { font-weight: bold; color: var(--color-accent); padding: 5px 10px; border-radius: 5px; transition: all 0.3s; text-shadow: 0 0 5px rgba(79, 172, 254, 0.3); }
+/* --- Responsive Layout for Mobile --- */
+@media (max-width: 768px) {
+  .controls { flex-direction: column; align-items: stretch; }
+  .dream-form-grid { grid-template-columns: 1fr; }
+  .page-header h1 { font-size: 2.2rem; }
+  .theme-toggle { position: static; margin-top: 15px; }
 }

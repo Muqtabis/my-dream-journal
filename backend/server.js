@@ -6,6 +6,7 @@ const cors = require('cors');
 // Import routes
 const dreamRoutes = require('./routes/dreamRoutes'); // We will create this next
 const userRoutes = require('./routes/userRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 // --- API ROUTES ---
 app.use('/api/dreams', dreamRoutes);
 app.use('/api/users', userRoutes); // This is line 12 from the error
+app.use('/api/ai', aiRoutes);
 
 // Connect to DB & start server
 mongoose.connect(process.env.MONGO_URI)

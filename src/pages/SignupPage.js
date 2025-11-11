@@ -1,30 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSignup } from '../hooks/useSignup'; // ✅ Import the hook
 
 const SignupPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState(null);
-    const navigate = useNavigate();
+    const { signup, error } = useSignup(); // ✅ Use the hook
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null); // Clear previous errors
-
-        const response = await fetch('http://localhost:8000/api/users/signup', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email, password })
-        });
-        const json = await response.json();
-
-        if (!response.ok) {
-            setError(json.error);
-        }
-        if (response.ok) {
-            // On successful signup, redirect to the login page
-            navigate('/login');
-        }
+        await signup(email, password); // ✅ Call the signup function
     };
 
     return (

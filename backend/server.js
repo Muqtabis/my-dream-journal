@@ -14,26 +14,57 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- API ROUTES ---
+// Support both /api/... and direct path mounts (handles serverless rewrites and standard Express)
 app.use('/api/dreams', dreamRoutes);
+app.use('/dreams', dreamRoutes);
+
 app.use('/api/users', userRoutes);
+app.use('/users', userRoutes);
+
 app.use('/api/ai', aiRoutes);
+app.use('/ai', aiRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get(['/api/health', '/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    environment: process.env.NODE_ENV || 'production',
+    dbState: mongoose.connection.readyState === 1 ? 'connected' : 'connecting',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Connect to DB
-if (process.env.MONGO_URI) {
-  mongoose.connect(process.env.MONGO_URI)
-    .then(() => {
+// Connect to DB (cached connection pattern for serverless)
+let cachedDbConnection = null;
+const connectDB = async () => {
+  if (cachedDbConnection && mongoose.connection.readyState === 1) {
+    return cachedDbConnection;
+  }
+  if (process.env.MONGO_URI) {
+    try {
+      cachedDbConnection = await mongoose.connect(process.env.MONGO_URI);
       console.log('✅ Connected to DB');
-    })
-    .catch((error) => {
-      console.log(`❌ DB connection error: ${error}`);
-    });
-}
+      return cachedDbConnection;
+    } catch (error) {
+      console.error(`❌ DB connection error: ${error}`);
+    }
+  }
+};
+
+// Initiate DB connection
+connectDB();
+
+// Middleware ensuring DB connection in serverless if needed
+app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState !== 1 && process.env.MONGO_URI) {
+    try {
+      await connectDB();
+    } catch (e) {
+      console.error('DB reconnection error in request middleware:', e);
+    }
+  }
+  next();
+});
 
 // Only listen directly if not running inside a serverless environment like Vercel
 if (!process.env.VERCEL) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuthContext } from './useAuthContext';
+import { API_BASE_URL } from '../config';
 
 export const useDreamsData = () => {
     const { user } = useAuthContext();
@@ -17,7 +18,7 @@ export const useDreamsData = () => {
 
             try {
                 setIsLoading(true);
-                const response = await fetch('http://localhost:8000/api/dreams', {
+                const response = await fetch(`${API_BASE_URL}/api/dreams`, {
                     headers: {
                         'Authorization': `Bearer ${user.token}`
                     }
@@ -28,7 +29,7 @@ export const useDreamsData = () => {
                     setError(json.error || 'Failed to fetch data.');
                     setDreams([]);
                 } else {
-                    const cleanDreams = json.filter(d => d.date); 
+                    const cleanDreams = Array.isArray(json) ? json.filter(d => d.date) : [];
                     setDreams(cleanDreams);
                     setError(null);
                 }

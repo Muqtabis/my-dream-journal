@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 import { useAuthContext } from '../hooks/useAuthContext';
-// We no longer need MoodChart here, it's on the Stats Page
 import EditDreamModal from '../components/EditDreamModal';
 import InterpretationModal from '../components/InterpretationModal';
+import { API_BASE_URL } from '../config';
 
 function HomePage() {
   const [dreams, setDreams] = useState([]);
@@ -54,19 +54,50 @@ function HomePage() {
   useEffect(() => {
     const fetchDreams = async () => {
       if (!user) return; 
+
+      // Check if user came from visualizer with a pending dream
+      const pendingDream = localStorage.getItem('pending_saved_dream');
+      if (pendingDream) {
+        try {
+          const parsed = JSON.parse(pendingDream);
+          localStorage.removeItem('pending_saved_dream');
+          await fetch(`${API_BASE_URL}/api/dreams`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({
+              title: parsed.title || 'Visualized Dream',
+              content: parsed.content || '',
+              category: parsed.category || 'normal',
+              mood: 4,
+              tags: ['AI-Visualized'],
+              isLucid: false,
+              isRecurring: false,
+              date: new Date().toISOString().split('T')[0],
+              imageUrl: parsed.imageUrl || '',
+              aiInterpretation: parsed.aiInterpretation || ''
+            })
+          });
+        } catch (e) {
+          console.error("Error saving pending dream:", e);
+        }
+      }
+
       const params = new URLSearchParams();
       if (filterCategory !== 'all') params.append('category', filterCategory);
       if (filterMood) params.append('mood', filterMood);
       if (filterLucid) params.append('isLucid', filterLucid);
       if (searchTerm) params.append('q', searchTerm);
-      const url = `http://localhost:8000/api/dreams?${params.toString()}`;
+      const url = `${API_BASE_URL}/api/dreams?${params.toString()}`;
       try {
         const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${user.token}` }
         });
         const json = await response.json();
         if (response.ok) {
-          setDreams(json); 
+          setDreams(Array.isArray(json) ? json : []); 
         }
       } catch (error) {
         console.error("Failed to fetch dreams:", error);
@@ -87,37 +118,47 @@ function HomePage() {
   const addDream = async () => {
     if (!user) return; 
     if (currentDream.title.trim() && currentDream.content.trim()) {
+      const todayISO = new Date().toISOString().split('T')[0];
       const newDreamData = {
         ...currentDream,
-        date: new Date().toLocaleDateString(),
+        date: todayISO,
         tags: currentDream.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
       };
-      const response = await fetch('http://localhost:8000/api/dreams', {
-        method: 'POST',
-        body: JSON.stringify(newDreamData),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
-      const savedDream = await response.json();
-      if (response.ok) {
-        setDreams([savedDream, ...dreams]);
-        setCurrentDream({
-          title: '', content: '', category: 'normal', mood: 5,
-          tags: '', isLucid: false, isRecurring: false
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/dreams`, {
+          method: 'POST',
+          body: JSON.stringify(newDreamData),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.token}`
+          }
         });
+        const savedDream = await response.json();
+        if (response.ok) {
+          setDreams([savedDream, ...dreams]);
+          setCurrentDream({
+            title: '', content: '', category: 'normal', mood: 5,
+            tags: '', isLucid: false, isRecurring: false
+          });
+        }
+      } catch (err) {
+        console.error("Error creating dream:", err);
       }
     }
   };
+
   const deleteDream = async (id) => {
     if (!user) return; 
-    const response = await fetch(`http://localhost:8000/api/dreams/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${user.token}` }
-    });
-    if (response.ok) {
-      setDreams(dreams.filter(dream => dream._id !== id));
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dreams/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${user.token}` }
+      });
+      if (response.ok) {
+        setDreams(dreams.filter(dream => dream._id !== id));
+      }
+    } catch (err) {
+      console.error("Error deleting dream:", err);
     }
   };
 
@@ -172,7 +213,7 @@ function HomePage() {
     setDreamToInterpret(null);
   };
 
-  const filteredDreams = dreams; // The array is already pre-filtered by the API
+  const filteredDreams = dreams;
 
   document.documentElement.setAttribute('data-theme', theme);
 
@@ -215,13 +256,10 @@ function HomePage() {
         >
             ✨ {filterLucid ? 'Showing Lucid' : 'Show Lucid Only'}
         </button>
-        {/* ❌ REMOVED: The old "Show Stats" button is gone */}
         <button className="btn-export" onClick={exportDreams}>
           💾 Export
         </button>
       </section>
-
-      {/* ❌ REMOVED: The old, collapsible stats panel is gone */}
 
       {/* Dream Input Form */}
       <section className="dream-form">
@@ -292,13 +330,13 @@ function HomePage() {
           const symbols = findSymbols(dream.content);
           return (
             <div className="dream-card" key={dream._id}>
-              <button className="btn-ai" onClick={() => handleOpenAiModal(dream)}>
+              <button className="btn-ai" onClick={() => handleOpenAiModal(dream)} title="AI Interpretation">
                 🤖
               </button>
-              <button className="btn-edit" onClick={() => handleOpenEditModal(dream)}>
+              <button className="btn-edit" onClick={() => handleOpenEditModal(dream)} title="Edit Dream">
                 ✏️
               </button>
-              <button className="btn-delete" onClick={() => deleteDream(dream._id)}>
+              <button className="btn-delete" onClick={() => deleteDream(dream._id)} title="Delete Dream">
                 ×
               </button>
               
@@ -310,7 +348,23 @@ function HomePage() {
                   {dream.isRecurring && ' • 🔄 Recurring'}
                 </div>
               </div>
+
+              {/* Visualizer Artwork (if generated) */}
+              {dream.imageUrl && (
+                <div className="card-image-preview">
+                  <img src={dream.imageUrl} alt={dream.title} loading="lazy" />
+                </div>
+              )}
+
               <p>{dream.content}</p>
+
+              {/* AI Interpretation summary badge if attached */}
+              {dream.aiInterpretation && (
+                <div className="card-ai-badge">
+                  <span>💡 <em>{dream.aiInterpretation}</em></span>
+                </div>
+              )}
+
               {dream.tags && dream.tags.length > 0 && (
                 <div className="dream-tags">
                   {dream.tags.map((tag, index) => (
@@ -355,7 +409,7 @@ function HomePage() {
           onDreamUpdated={handleDreamUpdated}
         />
       )}
-      {isAiModalOpen && (
+      {isAiModalOpen && dreamToInterpret && (
         <InterpretationModal
           dreamContent={dreamToInterpret.content}
           onClose={handleCloseAiModal}
@@ -363,6 +417,6 @@ function HomePage() {
       )}
     </div>
   );
-};
+}
 
 export default HomePage;

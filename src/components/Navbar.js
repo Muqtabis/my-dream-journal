@@ -14,26 +14,26 @@ const Navbar = () => {
         <header>
             <div className="container">
                 <Link to="/">
-                    <h1>Dream Journal</h1>
+                    <h1>🌙 Dream Journal</h1>
                 </Link>
                 <nav>
-                    {/* Logged-In User Section: Combines Stats, Email, and Logout */}
+                    {/* Publicly Accessible AI Visualizer */}
+                    <Link to="/visualizer" className="nav-visualizer-btn">
+                        🎨 AI Visualizer
+                    </Link>
+
+                    {/* Logged-In User Section */}
                     {user && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            {/* The navigation link to the dedicated Stats Page */}
                             <Link to="/stats">📊 Stats</Link> 
-                            
-                            {/* User Email */}
                             <span>{user.email}</span>
-                            
-                            {/* Logout Button */}
                             <button onClick={handleClick}>Log out</button>
                         </div>
                     )}
                     
                     {/* Logged-Out User Section */}
                     {!user && (
-                        <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <Link to="/login">Login</Link>
                             <Link to="/signup">Signup</Link>
                         </div>

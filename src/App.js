@@ -7,6 +7,12 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import Navbar from './components/Navbar';
 import StatsPage from './pages/StatsPage';
+import VisualizerPage from './pages/VisualizerPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsPage from './pages/TermsPage';
+import Footer from './components/Footer';
 
 function App() {
   const { user } = useAuthContext();
@@ -17,10 +23,19 @@ function App() {
         <Navbar />
         <div className="pages">
           <Routes>
+            {/* Public Interactive Visualizer */}
+            <Route 
+              path="/visualizer" 
+              element={<VisualizerPage />} 
+            />
+
+            {/* User Main Journal Route */}
             <Route 
               path="/" 
-              element={user ? <HomePage /> : <Navigate to="/login" />} 
+              element={user ? <HomePage /> : <Navigate to="/visualizer" />} 
             />
+
+            {/* Auth Routes */}
             <Route 
               path="/login" 
               element={!user ? <LoginPage /> : <Navigate to="/" />} 
@@ -29,12 +44,33 @@ function App() {
               path="/signup" 
               element={!user ? <SignupPage /> : <Navigate to="/" />} 
             />
-          <Route 
+
+            {/* User Stats Route */}
+            <Route 
               path="/stats" 
               element={user ? <StatsPage /> : <Navigate to="/login" />} 
             />
-            </Routes>
+
+            {/* Mandatory Trust & Transparency Routes */}
+            <Route 
+              path="/about" 
+              element={<AboutPage />} 
+            />
+            <Route 
+              path="/contact" 
+              element={<ContactPage />} 
+            />
+            <Route 
+              path="/privacy" 
+              element={<PrivacyPolicyPage />} 
+            />
+            <Route 
+              path="/terms" 
+              element={<TermsPage />} 
+            />
+          </Routes>
         </div>
+        <Footer />
       </BrowserRouter>
     </div>
   );

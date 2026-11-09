@@ -51,11 +51,23 @@ router.get('/', async (req, res) => {
 
 // POST a new dream
 router.post('/', async (req, res) => {
-  const { title, content, category, mood, tags, isLucid, isRecurring, date } = req.body;
+  const { title, content, category, mood, tags, isLucid, isRecurring, date, imageUrl, aiInterpretation } = req.body;
   const user_id = req.user._id;
 
   try {
-    const dream = await Dream.create({ title, content, category, mood, tags, isLucid, isRecurring, date, user_id });
+    const dream = await Dream.create({ 
+      title, 
+      content, 
+      category, 
+      mood, 
+      tags, 
+      isLucid, 
+      isRecurring, 
+      date, 
+      imageUrl: imageUrl || '', 
+      aiInterpretation: aiInterpretation || '', 
+      user_id 
+    });
     res.status(201).json(dream);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -65,18 +77,22 @@ router.post('/', async (req, res) => {
 // PUT (Update) a dream by ID
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
+  const user_id = req.user._id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(404).json({error: 'No such dream'});
+    return res.status(404).json({ error: 'No such dream' });
   }
 
   try {
-    const dream = await Dream.findByIdAndUpdate(id, {
-      ...req.body 
-    }, { new: true }); 
+    // Ensure the dream belongs to the logged-in user
+    const dream = await Dream.findOneAndUpdate(
+      { _id: id, user_id: user_id },
+      { ...req.body },
+      { new: true }
+    ); 
 
     if (!dream) {
-        return res.status(404).json({error: 'No such dream'});
+      return res.status(404).json({ error: 'No such dream' });
     }
     res.status(200).json(dream);
   } catch (error) {
@@ -90,13 +106,13 @@ router.delete('/:id', async (req, res) => {
   const user_id = req.user._id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(404).json({error: 'No such dream'});
+    return res.status(404).json({ error: 'No such dream' });
   }
 
   try {
     const dream = await Dream.findOneAndDelete({ _id: id, user_id: user_id }); 
     if (!dream) {
-        return res.status(404).json({error: 'No such dream'});
+      return res.status(404).json({ error: 'No such dream' });
     }
     res.status(200).json(dream);
   } catch (error) {

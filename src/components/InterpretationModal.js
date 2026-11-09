@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { API_BASE_URL } from '../config';
 
 const InterpretationModal = ({ dreamContent, onClose }) => {
   const [interpretation, setInterpretation] = useState('');
@@ -16,7 +17,7 @@ const InterpretationModal = ({ dreamContent, onClose }) => {
       }
 
       try {
-        const response = await fetch('http://localhost:8000/api/ai/interpret', {
+        const response = await fetch(`${API_BASE_URL}/api/ai/interpret`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -28,7 +29,7 @@ const InterpretationModal = ({ dreamContent, onClose }) => {
         const json = await response.json();
 
         if (!response.ok) {
-          throw new Error(json.error);
+          throw new Error(json.error || 'Failed to interpret dream');
         }
 
         setInterpretation(json.interpretation);
@@ -41,7 +42,7 @@ const InterpretationModal = ({ dreamContent, onClose }) => {
     };
 
     fetchInterpretation();
-  }, [dreamContent, user]); // Re-run if these change
+  }, [dreamContent, user]);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

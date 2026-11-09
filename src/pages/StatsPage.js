@@ -16,6 +16,26 @@ const categories = {
 };
 const moodEmojis = ['😭', '😢', '😐', '🙂', '😊', '😍'];
 
+const parseDateToISO = (dateStr) => {
+    if (!dateStr) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return dateStr;
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+    }
+    if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            if (parts[2].length === 4) {
+                return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+            }
+        }
+    }
+    return null;
+};
+
 const StatsPage = () => {
     const { dreams, isLoading, error } = useDreamsData();
     const { user } = useAuthContext();
@@ -23,7 +43,7 @@ const StatsPage = () => {
         totalDreams: 0,
         avgMood: 'N/A',
         lucidCount: 0,
-        mostCommonCategory: 'N/A'
+        mostCommonCategoryKey: 'normal'
     });
     
     useEffect(() => {
@@ -46,7 +66,7 @@ const StatsPage = () => {
                 totalDreams,
                 avgMood,
                 lucidCount,
-                mostCommonCategory: categories[mostCommonCategoryKey]?.label || 'Unknown'
+                mostCommonCategoryKey
             });
         }
     }, [dreams]); 
@@ -55,19 +75,14 @@ const StatsPage = () => {
         if (!dreams || dreams.length === 0) return [];
         
         return dreams.map(dream => {
-            // Safety check for date
-            if (!dream.date) return null;
-            const parts = dream.date.split('/');
-            if (parts.length !== 3) return null;
-            
-            const [month, day, year] = parts;
-            const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            const formattedDate = parseDateToISO(dream.date);
+            if (!formattedDate) return null;
             
             return {
                 date: formattedDate,
-                count: dream.mood + 1
+                count: (typeof dream.mood === 'number' ? dream.mood : 0) + 1
             };
-        }).filter(Boolean); // Remove any null entries
+        }).filter(Boolean);
     };
 
     const getTagFrequencies = () => {
@@ -76,8 +91,12 @@ const StatsPage = () => {
         dreams.forEach(dream => {
             if (Array.isArray(dream.tags)) {
                 dream.tags.forEach(tag => {
-                    const normalizedTag = tag.toLowerCase();
-                    tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+                    if (tag && typeof tag === 'string') {
+                        const normalizedTag = tag.trim().toLowerCase();
+                        if (normalizedTag) {
+                            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+                        }
+                    }
                 });
             }
         });
@@ -102,9 +121,6 @@ const StatsPage = () => {
         return <div className="error-state container">Error: {error}</div>;
     }
 
-    // Apply the theme to the root element for this page
-    document.documentElement.setAttribute('data-theme', 'dark'); // Or use a theme state if you prefer
-
     return (
         <div className="stats-page-container container">
             <header className="page-header">
@@ -113,7 +129,6 @@ const StatsPage = () => {
             </header>
 
             <section className="stats-content">
-                
                 <div className="stats-grid">
                     <div className="stat-card">
                         <div>🌙</div>
@@ -126,8 +141,8 @@ const StatsPage = () => {
                         <div>Average Mood</div>
                     </div>
                     <div className="stat-card">
-                        <div>{categories[stats.mostCommonCategory]?.emoji || '❓'}</div>
-                        <div>{stats.mostCommonCategory}</div>
+                        <div>{categories[stats.mostCommonCategoryKey]?.emoji || '❓'}</div>
+                        <div>{categories[stats.mostCommonCategoryKey]?.label || 'Unknown'}</div>
                         <div>Most Common Type</div>
                     </div>
                     <div className="stat-card">
@@ -173,7 +188,7 @@ const StatsPage = () => {
                                     opacity: `${0.5 + (count / maxTagCount) * 0.5}`,
                                 }}
                             >
-                                {tag} ({count})
+                                #{tag} ({count})
                             </span>
                         ))}
                     </div>

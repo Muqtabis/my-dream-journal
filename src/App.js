@@ -19,7 +19,7 @@ function App() {
 
   return (
     <div className="App">
-      <BrowserRouter>
+      <BrowserRouter basename={process.env.PUBLIC_URL || ''}>
         <Navbar />
         <div className="pages">
           <Routes>
@@ -67,6 +67,12 @@ function App() {
             <Route 
               path="/terms" 
               element={<TermsPage />} 
+            />
+
+            {/* Fallback route */}
+            <Route 
+              path="*" 
+              element={<Navigate to="/visualizer" replace />} 
             />
           </Routes>
         </div>

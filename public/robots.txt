@@ -1,12 +1,4 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
-Allow: /visualizer
-Allow: /about
-Allow: /contact
-Allow: /privacy
-Allow: /terms
-Disallow: /stats
-Disallow: /api/
 
-Sitemap: https://dreamjournal.app/sitemap.xml
+Sitemap: https://muqtabis.github.io/my-dream-journal/sitemap.xml

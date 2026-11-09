@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 // Import routes
-const dreamRoutes = require('./routes/dreamRoutes'); // We will create this next
+const dreamRoutes = require('./routes/dreamRoutes');
 const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 
@@ -16,17 +16,31 @@ app.use(express.json());
 
 // --- API ROUTES ---
 app.use('/api/dreams', dreamRoutes);
-app.use('/api/users', userRoutes); // This is line 12 from the error
+app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Connect to DB & start server
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    const PORT = process.env.PORT || 8000;
-    app.listen(PORT, () => {
-      console.log(`✅ Connected to DB & Server is listening on port ${PORT}`);
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Connect to DB
+if (process.env.MONGO_URI) {
+  mongoose.connect(process.env.MONGO_URI)
+    .then(() => {
+      console.log('✅ Connected to DB');
+    })
+    .catch((error) => {
+      console.log(`❌ DB connection error: ${error}`);
     });
-  })
-  .catch((error) => {
-    console.log(`❌ DB connection error: ${error}`);
+}
+
+// Only listen directly if not running inside a serverless environment like Vercel
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 8000;
+  app.listen(PORT, () => {
+    console.log(`✅ Server is listening on port ${PORT}`);
   });
+}
+
+module.exports = app;

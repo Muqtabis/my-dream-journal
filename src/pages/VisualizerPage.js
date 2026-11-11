@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { API_BASE_URL } from '../config';
+import { analyzeDreamDirectly } from '../utils/dreamAnalyzer';
 
 const ART_STYLES = [
   { id: 'surrealism', label: 'Surrealism (Dalí)', emoji: '🎨', prompt: 'Surrealism in the style of Salvador Dalí and René Magritte, dreamlike logic, ethereal lighting' },
@@ -46,6 +47,19 @@ const VisualizerPage = () => {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
 
+  // Saved dreams from local storage (for offline / static GitHub Pages mode)
+  const [savedDreams, setSavedDreams] = useState([]);
+  const [showSavedModal, setShowSavedModal] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('local_dreams') || '[]');
+      setSavedDreams(stored);
+    } catch (e) {
+      console.warn('Could not parse local_dreams:', e);
+    }
+  }, []);
+
   const loadingMessages = [
     "Consulting the subconscious...",
     "Extracting Jungian archetypes & hidden symbols...",
@@ -80,21 +94,39 @@ const VisualizerPage = () => {
     }, 1800);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/visualize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dreamContent: dreamContent.trim(),
-          artStyle: selectedStyle,
-          mood: selectedMood
-        })
-      });
+      let data = null;
 
-      const data = await response.json();
+      // 1. Attempt backend endpoint first if available
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/visualize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dreamContent: dreamContent.trim(),
+            artStyle: selectedStyle,
+            mood: selectedMood
+          })
+        });
+
+        if (response.ok) {
+          const resJson = await response.json();
+          if (resJson.success) {
+            data = resJson;
+          }
+        }
+      } catch (backendFetchErr) {
+        console.info("Backend route unavailable, switching to browser AI engine.");
+      }
+
+      // 2. Fallback to client-side Gemini / Depth Psychology Engine
+      if (!data) {
+        data = await analyzeDreamDirectly(dreamContent.trim(), selectedStyle, selectedMood);
+      }
+
       clearInterval(interval);
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to analyze dream.");
+      if (!data || !data.success) {
+        throw new Error("Failed to analyze dream.");
       }
 
       setResult(data);
@@ -115,57 +147,66 @@ const VisualizerPage = () => {
   };
 
   const handleSaveToJournal = async () => {
-    if (!user) {
-      localStorage.setItem('pending_saved_dream', JSON.stringify({
-        title: dreamTitle || 'Visualized Dream',
-        content: dreamContent,
-        imageUrl: result?.visualizer?.imageUrl,
-        aiInterpretation: result?.psychology?.overview,
-        category: selectedMood.toLowerCase().includes('nightmare') ? 'nightmare' : 'normal'
-      }));
-      navigate('/login');
-      return;
-    }
-
     setSaveLoading(true);
     setSaveMessage(null);
 
-    try {
-      const payload = {
-        title: dreamTitle.trim() || 'My Visualized Dream',
-        content: dreamContent.trim(),
-        category: selectedMood.toLowerCase().includes('nightmare') ? 'nightmare' : (selectedMood.toLowerCase().includes('lucid') ? 'lucid' : 'normal'),
-        mood: 4,
-        tags: [selectedStyle.split(' ')[0], selectedMood.split(' ')[0]],
-        isLucid: selectedMood.toLowerCase().includes('lucid'),
-        isRecurring: false,
-        date: new Date().toISOString().split('T')[0],
-        imageUrl: result?.visualizer?.imageUrl || '',
-        aiInterpretation: result?.psychology?.overview || ''
-      };
+    const dreamToSave = {
+      _id: 'local_' + Date.now(),
+      title: dreamTitle.trim() || 'My Visualized Dream',
+      content: dreamContent.trim(),
+      category: selectedMood.toLowerCase().includes('nightmare') ? 'nightmare' : (selectedMood.toLowerCase().includes('lucid') ? 'lucid' : 'normal'),
+      mood: 4,
+      tags: [selectedStyle.split(' ')[0], selectedMood.split(' ')[0]],
+      isLucid: selectedMood.toLowerCase().includes('lucid'),
+      isRecurring: false,
+      date: new Date().toISOString().split('T')[0],
+      imageUrl: result?.visualizer?.imageUrl || '',
+      aiInterpretation: result?.psychology?.overview || ''
+    };
 
-      const response = await fetch(`${API_BASE_URL}/api/dreams`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        },
-        body: JSON.stringify(payload)
-      });
+    // If user is authenticated with a live backend, try saving to server
+    if (user && API_BASE_URL) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/dreams`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.token}`
+          },
+          body: JSON.stringify(dreamToSave)
+        });
 
-      const json = await response.json();
-
-      if (response.ok) {
-        setIsSaved(true);
-        setSaveMessage("✨ Successfully saved to your Dream Journal!");
-      } else {
-        setSaveMessage(`Failed to save: ${json.error || 'Server error'}`);
+        if (response.ok) {
+          setIsSaved(true);
+          setSaveMessage("✨ Successfully saved to your cloud Dream Journal!");
+          setSaveLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not save to remote server, falling back to local journal:", err);
       }
-    } catch (err) {
-      setSaveMessage("Could not save to server. Please try again.");
+    }
+
+    // Save to local storage (works universally on GitHub Pages)
+    try {
+      const existing = JSON.parse(localStorage.getItem('local_dreams') || '[]');
+      const updated = [dreamToSave, ...existing.filter(d => d.content !== dreamToSave.content)];
+      localStorage.setItem('local_dreams', JSON.stringify(updated));
+      setSavedDreams(updated);
+      setIsSaved(true);
+      setSaveMessage("✨ Successfully saved to your Dream Journal!");
+    } catch (e) {
+      setSaveMessage("Saved dream locally.");
+      setIsSaved(true);
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  const handleDeleteSavedDream = (id) => {
+    const updated = savedDreams.filter(d => d._id !== id);
+    setSavedDreams(updated);
+    localStorage.setItem('local_dreams', JSON.stringify(updated));
   };
 
   return (
@@ -177,6 +218,19 @@ const VisualizerPage = () => {
         <p>
           Describe your subconscious experience. Our Gemini-powered agent decodes the psychological meaning and renders your custom dream visual.
         </p>
+
+        {savedDreams.length > 0 && (
+          <div style={{ marginTop: '15px' }}>
+            <button
+              type="button"
+              className="btn-sample-chip"
+              style={{ padding: '8px 16px', background: 'rgba(99, 102, 241, 0.2)', border: '1px solid #6366f1', color: '#c7d2fe', fontWeight: 'bold' }}
+              onClick={() => setShowSavedModal(true)}
+            >
+              📖 View Saved Dreams ({savedDreams.length})
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main Interactive Form */}
@@ -220,133 +274,141 @@ const VisualizerPage = () => {
             ))}
           </div>
 
-          {/* Art Style Picker */}
-          <div className="selection-section">
-            <label>🎨 Choose Visual Art Style:</label>
-            <div className="style-chips-grid">
+          {/* Art Style Selector */}
+          <div className="input-group">
+            <label>Select Dream Art Style:</label>
+            <div className="style-grid">
               {ART_STYLES.map((style) => (
                 <button
                   type="button"
                   key={style.id}
-                  className={`style-chip ${selectedStyle === style.label ? 'active' : ''}`}
+                  className={`style-card ${selectedStyle === style.label ? 'active' : ''}`}
                   onClick={() => setSelectedStyle(style.label)}
                 >
-                  <span className="chip-emoji">{style.emoji}</span>
-                  <span className="chip-label">{style.label}</span>
+                  <span className="style-emoji">{style.emoji}</span>
+                  <span className="style-label">{style.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Emotional Tone / Mood Picker */}
-          <div className="selection-section">
-            <label>🔮 Dream Emotion / Tone:</label>
-            <div className="mood-chips-row">
-              {MOODS.map((mood) => (
+          {/* Emotional Mood Selector */}
+          <div className="input-group">
+            <label>Dominant Emotional Mood:</label>
+            <div className="mood-chips">
+              {MOODS.map((m) => (
                 <button
                   type="button"
-                  key={mood.id}
-                  className={`mood-chip ${selectedMood === mood.label ? 'active' : ''}`}
-                  onClick={() => setSelectedMood(mood.label)}
+                  key={m.id}
+                  className={`mood-chip ${selectedMood === m.label ? 'active' : ''}`}
+                  onClick={() => setSelectedMood(m.label)}
                 >
-                  <span>{mood.emoji} {mood.label}</span>
+                  {m.emoji} {m.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {error && <div className="error">{error}</div>}
+          {error && <div className="error-alert">{error}</div>}
 
-          {/* Submit Action */}
-          <div className="action-row">
-            <button type="submit" className="btn-visualize-submit" disabled={isLoading}>
-              {isLoading ? '🔮 Channeling Dream Matrix...' : '✨ Interpret & Visualize Dream'}
-            </button>
-          </div>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="btn-visualize-submit"
+            disabled={isLoading || !dreamContent.trim()}
+          >
+            {isLoading ? '🔮 Interpreting & Generating Artwork...' : '✨ Interpret & Visualize Dream'}
+          </button>
         </form>
-
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div className="visualizer-loading-card">
-            <div className="spinner-orbit"></div>
-            <p className="loading-text">{loadingMessages[loadingStep]}</p>
-            <span className="loading-sub">Analyzing subconscious archetypes...</span>
-          </div>
-        )}
       </section>
 
-      {/* Results View */}
-      {result && (
-        <section className="visualizer-results-grid">
-          {/* Left Column: Psychological Meaning */}
-          <div className="result-column psychology-column">
-            <div className="result-card">
-              <div className="card-badge">🧠 Psychological Analysis</div>
-              <h2>Subconscious Meaning</h2>
-              <p className="psychology-overview">{result.psychology?.overview}</p>
+      {/* Loading Progress State */}
+      {isLoading && (
+        <section className="loading-state-card">
+          <div className="spinner-cosmic"></div>
+          <h3>Unlocking Subconscious Imagery</h3>
+          <p className="loading-step-text">{loadingMessages[loadingStep]}</p>
+          <div className="progress-bar-container">
+            <div className="progress-bar-fill" style={{ width: `${((loadingStep + 1) / loadingMessages.length) * 100}%` }}></div>
+          </div>
+        </section>
+      )}
 
-              {/* Archetypes */}
+      {/* Results View */}
+      {result && !isLoading && (
+        <section className="visualizer-results">
+          <div className="results-grid">
+            {/* Left Column: Psychological Analysis */}
+            <div className="card-result-panel psychology-panel">
+              <div className="panel-badge">🧠 Psychological Analysis</div>
+              <h2>Subconscious Deconstruction</h2>
+              
+              <div className="analysis-section">
+                <h3>Core Meaning</h3>
+                <p className="analysis-overview">{result.psychology?.overview}</p>
+              </div>
+
               {result.psychology?.archetypes?.length > 0 && (
-                <div className="psych-sub-block">
-                  <h3>🎭 Identified Archetypes</h3>
-                  <div className="archetypes-list">
+                <div className="analysis-section">
+                  <h3>Jungian Archetypes Identified</h3>
+                  <div className="archetype-list">
                     {result.psychology.archetypes.map((arch, idx) => (
                       <div key={idx} className="archetype-item">
-                        <strong>{arch.name}</strong>
-                        <span>{arch.explanation}</span>
+                        <span className="archetype-name">🏛️ {arch.name}:</span>
+                        <span className="archetype-desc">{arch.explanation}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Key Symbols */}
               {result.psychology?.keySymbols?.length > 0 && (
-                <div className="psych-sub-block">
-                  <h3>🔮 Symbolic Decoders</h3>
-                  <div className="symbols-list">
+                <div className="analysis-section">
+                  <h3>Dream Symbols Decoded</h3>
+                  <div className="symbol-chips">
                     {result.psychology.keySymbols.map((item, idx) => (
-                      <div key={idx} className="symbol-pill">
-                        <span className="symbol-name">{item.symbol}</span>
-                        <span className="symbol-meaning">{item.meaning}</span>
+                      <div key={idx} className="symbol-chip">
+                        <strong>{item.symbol}</strong>
+                        <span>{item.meaning}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Actionable Journal Prompts */}
               {result.psychology?.journalPrompts?.length > 0 && (
-                <div className="psych-sub-block">
-                  <h3>✍️ Reflective Journal Prompts</h3>
-                  <ul className="prompts-list">
+                <div className="analysis-section">
+                  <h3>Reflective Journal Prompts</h3>
+                  <ul className="journal-prompts">
                     {result.psychology.journalPrompts.map((q, idx) => (
-                      <li key={idx}>{q}</li>
+                      <li key={idx}>✍️ {q}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* Color Palette */}
               {result.psychology?.colorPalette?.length > 0 && (
-                <div className="psych-sub-block">
-                  <h3>🎨 Dream Mood Palette</h3>
-                  <div className="palette-row">
-                    {result.psychology.colorPalette.map((color, idx) => (
-                      <div key={idx} className="palette-swatch" style={{ background: color }} title={color}>
-                        <span>{color}</span>
+                <div className="analysis-section">
+                  <h3>Subconscious Color Palette</h3>
+                  <div className="color-palette-bar">
+                    {result.psychology.colorPalette.map((hex, idx) => (
+                      <div
+                        key={idx}
+                        className="palette-swatch"
+                        style={{ backgroundColor: hex }}
+                        title={hex}
+                      >
+                        <span>{hex}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Right Column: Visual Artwork & Prompt */}
-          <div className="result-column artwork-column">
-            <div className="result-card artwork-card">
-              <div className="card-badge">🖼️ Rendered Dreamscape</div>
+            {/* Right Column: AI Artwork & Prompt */}
+            <div className="card-result-panel artwork-panel">
+              <div className="panel-badge">🎨 Dream Art Visualization</div>
               <h2>Visual Artwork</h2>
 
               {/* Generated Image Frame */}
@@ -376,7 +438,7 @@ const VisualizerPage = () => {
                   onClick={handleSaveToJournal}
                   disabled={saveLoading || isSaved}
                 >
-                  {saveLoading ? 'Saving...' : (isSaved ? '✅ Saved in Journal' : (user ? '💾 Save to My Journal' : '🔒 Log In to Save'))}
+                  {saveLoading ? 'Saving...' : (isSaved ? '✅ Saved in Journal' : '💾 Save to Journal')}
                 </button>
               </div>
 
@@ -401,16 +463,59 @@ const VisualizerPage = () => {
         </section>
       )}
 
+      {/* Saved Dreams Modal / Drawer */}
+      {showSavedModal && (
+        <div className="modal-backdrop" onClick={() => setShowSavedModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>📖 Your Saved Dream Journal ({savedDreams.length})</h2>
+              <button className="btn-close" onClick={() => setShowSavedModal(false)}>✕</button>
+            </div>
+
+            {savedDreams.length === 0 ? (
+              <p>No dreams saved yet. Generate a dream visual and click "Save to Journal"!</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '20px' }}>
+                {savedDreams.map((d) => (
+                  <div key={d._id} style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '10px', display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
+                    {d.imageUrl && (
+                      <img src={d.imageUrl} alt={d.title} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px' }} />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h4 style={{ margin: 0, color: '#c7d2fe' }}>{d.title}</h4>
+                        <button
+                          onClick={() => handleDeleteSavedDream(d._id)}
+                          style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                          title="Delete dream"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '4px 0' }}>📅 {d.date} | Category: {d.category}</p>
+                      <p style={{ fontSize: '0.9rem', color: '#e2e8f0', margin: '8px 0' }}>{d.content}</p>
+                      {d.aiInterpretation && (
+                        <p style={{ fontSize: '0.85rem', color: '#a5b4fc', fontStyle: 'italic', margin: '4px 0' }}>💡 {d.aiInterpretation}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Public Callout Banner for Visitors */}
       {!user && (
         <section className="public-cta-banner">
           <h2>Track Your Subconscious Journey</h2>
           <p>
-            Create your free private journal to archive your dreams, track emotional patterns, view monthly heatmaps, and re-generate artwork anytime.
+            Capture your dreams, track emotional patterns, view monthly heatmaps, and re-generate artwork anytime.
           </p>
           <div className="cta-buttons">
-            <Link to="/signup" className="btn-cta-signup">Create Free Journal Account</Link>
-            <Link to="/login" className="btn-cta-login">Existing User? Log In</Link>
+            <Link to="/about" className="btn-cta-signup">Learn About Jungian Dream Analysis</Link>
+            <Link to="/contact" className="btn-cta-login">Contact & Feedback</Link>
           </div>
         </section>
       )}

@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#1a1a2e" />
 
+    <!-- Single Page Apps for GitHub Pages routing -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&') 
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location))
+    </script>
+
     <!-- Search Engine Optimization (SEO) -->
     <title>Dream Journal & AI Dream Visualizer — Subconscious Mind Exploration</title>
     <meta
@@ -17,11 +31,11 @@
       content="dream journal, dream interpreter, dream visualizer, AI dream analysis, Jungian archetypes, subconscious analysis, dream symbols, dream art generator"
     />
     <meta name="author" content="Dream Journal" />
-    <link rel="canonical" href="https://dreamjournal.app/" />
+    <link rel="canonical" href="https://muqtabis.github.io/my-dream-journal/" />
 
     <!-- Open Graph (Social Sharing) -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://dreamjournal.app/" />
+    <meta property="og:url" content="https://muqtabis.github.io/my-dream-journal/" />
     <meta property="og:title" content="Dream Journal & AI Dream Visualizer" />
     <meta
       property="og:description"

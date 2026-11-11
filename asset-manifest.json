@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/my-dream-journal/static/css/main.704c1162.css",
-    "main.js": "/my-dream-journal/static/js/main.9ee5d54b.js",
+    "main.js": "/my-dream-journal/static/js/main.27b0770c.js",
     "static/js/453.1c7c5aec.chunk.js": "/my-dream-journal/static/js/453.1c7c5aec.chunk.js",
     "index.html": "/my-dream-journal/index.html",
     "main.704c1162.css.map": "/my-dream-journal/static/css/main.704c1162.css.map",
-    "main.9ee5d54b.js.map": "/my-dream-journal/static/js/main.9ee5d54b.js.map",
+    "main.27b0770c.js.map": "/my-dream-journal/static/js/main.27b0770c.js.map",
     "453.1c7c5aec.chunk.js.map": "/my-dream-journal/static/js/453.1c7c5aec.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.704c1162.css",
-    "static/js/main.9ee5d54b.js"
+    "static/js/main.27b0770c.js"
   ]
 }

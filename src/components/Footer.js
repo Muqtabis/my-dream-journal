@@ -43,7 +43,16 @@ const Footer = () => {
 
       <div className="footer-bottom">
         <div className="container footer-bottom-content">
-          <p>© {currentYear} Dream Journal. All rights reserved.</p>
+          <p>
+            © {currentYear} Dream Journal — Built by{' '}
+            <a href="https://muqtabis.github.io/" target="_blank" rel="noreferrer" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>
+              Muqtabis Ahmar
+            </a>{' '}
+            •{' '}
+            <a href="https://github.com/Muqtabis/my-dream-journal" target="_blank" rel="noreferrer" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>
+              GitHub
+            </a>
+          </p>
           <p className="disclaimer-note">
             Disclaimer: AI interpretations and visual prompts are provided for creative journaling, self-reflection, and personal exploration purposes only.
           </p>

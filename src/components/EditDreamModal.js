@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { API_BASE_URL } from '../config';
+import { updateLocalDream, isUnavailableBackendResponse } from '../utils/localDreamStore';
 
 const EditDreamModal = ({ dream, onClose, onDreamUpdated }) => {
   const { user } = useAuthContext();
@@ -24,7 +25,6 @@ const EditDreamModal = ({ dream, onClose, onDreamUpdated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user) return;
 
     const parsedTags = tagsInput
       .split(',')
@@ -33,6 +33,17 @@ const EditDreamModal = ({ dream, onClose, onDreamUpdated }) => {
 
     const { title, content, category, mood, isLucid, isRecurring } = formData;
     const updateData = { title, content, category, mood, tags: parsedTags, isLucid, isRecurring };
+
+    const useLocalOnly = !user || user.isLocal || String(dream._id || '').startsWith('local_');
+
+    if (useLocalOnly) {
+      const updated = updateLocalDream(dream._id, updateData);
+      if (updated) {
+        onDreamUpdated(updated);
+      }
+      onClose();
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/dreams/${dream._id}`, {
@@ -44,6 +55,13 @@ const EditDreamModal = ({ dream, onClose, onDreamUpdated }) => {
         }
       });
 
+      if (isUnavailableBackendResponse(response)) {
+        const updated = updateLocalDream(dream._id, updateData);
+        if (updated) onDreamUpdated(updated);
+        onClose();
+        return;
+      }
+
       const json = await response.json();
 
       if (response.ok) {
@@ -53,7 +71,9 @@ const EditDreamModal = ({ dream, onClose, onDreamUpdated }) => {
         console.error('Failed to update dream:', json.error);
       }
     } catch (err) {
-      console.error('Network error updating dream:', err);
+      const updated = updateLocalDream(dream._id, updateData);
+      if (updated) onDreamUpdated(updated);
+      onClose();
     }
   };
 

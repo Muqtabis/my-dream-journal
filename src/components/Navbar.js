@@ -17,15 +17,15 @@ const Navbar = () => {
                     <h1>🌙 Dream Journal</h1>
                 </Link>
                 <nav>
-                    {/* Publicly Accessible AI Visualizer */}
                     <Link to="/visualizer" className="nav-visualizer-btn">
                         🎨 AI Visualizer
                     </Link>
+                    <Link to="/journal">📖 Journal</Link>
+                    <Link to="/stats">📊 Stats</Link>
 
                     {/* Logged-In User Section */}
                     {user && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            <Link to="/stats">📊 Stats</Link> 
                             <span>{user.email}</span>
                             <button onClick={handleClick}>Log out</button>
                         </div>

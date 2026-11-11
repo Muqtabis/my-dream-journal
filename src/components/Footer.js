@@ -24,17 +24,17 @@ const Footer = () => {
           <h4>Explore</h4>
           <ul>
             <li><Link to="/visualizer">🎨 AI Dream Visualizer</Link></li>
-            <li><Link to="/">📖 Dream Archive</Link></li>
+            <li><Link to="/journal">📖 Dream Archive</Link></li>
             <li><Link to="/stats">📊 Subconscious Insights</Link></li>
           </ul>
         </div>
 
         {/* Trust & Legal Column */}
         <div className="footer-col">
-          <h4>Trust & Transparency</h4>
+          <h4>Trust &amp; Transparency</h4>
           <ul>
-            <li><Link to="/about">About Us & Methodology</Link></li>
-            <li><Link to="/contact">Contact & Support</Link></li>
+            <li><Link to="/about">About Us &amp; Methodology</Link></li>
+            <li><Link to="/contact">Contact &amp; Support</Link></li>
             <li><Link to="/privacy">Privacy Policy</Link></li>
             <li><Link to="/terms">Terms of Service</Link></li>
           </ul>

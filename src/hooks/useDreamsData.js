@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthContext } from './useAuthContext';
 import { API_BASE_URL } from '../config';
+import { getLocalDreams, isUnavailableBackendResponse } from '../utils/localDreamStore';
 
 export const useDreamsData = () => {
     const { user } = useAuthContext();
@@ -10,9 +11,11 @@ export const useDreamsData = () => {
 
     useEffect(() => {
         const fetchDreams = async () => {
-            if (!user) {
+            if (!user || user.isLocal) {
+                const local = getLocalDreams().filter((d) => d.date);
+                setDreams(local);
+                setError(null);
                 setIsLoading(false);
-                setDreams([]);
                 return;
             }
 
@@ -23,6 +26,13 @@ export const useDreamsData = () => {
                         'Authorization': `Bearer ${user.token}`
                     }
                 });
+
+                if (isUnavailableBackendResponse(response)) {
+                    setDreams(getLocalDreams().filter((d) => d.date));
+                    setError(null);
+                    return;
+                }
+
                 const json = await response.json();
 
                 if (!response.ok) {
@@ -34,8 +44,15 @@ export const useDreamsData = () => {
                     setError(null);
                 }
             } catch (err) {
-                setError('Could not connect to server.');
-                setDreams([]);
+                // Fall back to locally saved dreams if server is unreachable
+                const local = getLocalDreams().filter((d) => d.date);
+                if (local.length > 0 || !API_BASE_URL) {
+                    setDreams(local);
+                    setError(null);
+                } else {
+                    setError('Could not connect to server.');
+                    setDreams([]);
+                }
             } finally {
                 setIsLoading(false);
             }

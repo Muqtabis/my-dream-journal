@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { API_BASE_URL } from '../config';
-import { analyzeDreamDirectly } from '../utils/dreamAnalyzer';
+import {
+  analyzeDreamDirectly,
+  getSavedUserGeminiKey,
+  setSavedUserGeminiKey
+} from '../utils/dreamAnalyzer';
+import {
+  getLocalDreams,
+  createLocalDreamEntry,
+  deleteLocalDream,
+  isUnavailableBackendResponse
+} from '../utils/localDreamStore';
 
 const ART_STYLES = [
-  { id: 'surrealism', label: 'Surrealism (Dalí)', emoji: '🎨', prompt: 'Surrealism in the style of Salvador Dalí and René Magritte, dreamlike logic, ethereal lighting' },
-  { id: 'watercolor', label: 'Ethereal Watercolor', emoji: '🌊', prompt: 'Soft ethereal watercolor painting, bleeding pastel tones, gentle washes, poetic atmosphere' },
-  { id: 'cyberpunk', label: 'Cyberpunk Neon', emoji: '🌌', prompt: 'Futuristic cyberpunk neon dreamscape, glowing volumetric fog, hyper-detailed synthwave aesthetic' },
-  { id: 'ghibli', label: 'Studio Ghibli', emoji: '🍃', prompt: 'Studio Ghibli anime landscape, lush hand-painted scenery, whimsical gentle sunlight, Hayao Miyazaki style' },
-  { id: 'gothic', label: 'Dark Gothic Fantasy', emoji: '🕯️', prompt: 'Dark gothic fantasy, dramatic chiaroscuro shadows, misty atmosphere, Tim Burton and Guillermo del Toro aesthetic' },
-  { id: 'oil', label: 'Vintage Oil Painting', emoji: '🖼️', prompt: 'Classical baroque oil painting, rich textured brushstrokes, dramatic golden hour lighting, Rembrandt style' },
-  { id: 'cosmic', label: 'Cosmic Psychedelic', emoji: '✨', prompt: 'Cosmic psychedelic dream, swirling nebulae, sacred geometry, iridescent fractal light' }
+  { id: 'surrealism', label: 'Surrealism (Dalí)', emoji: '🎨' },
+  { id: 'watercolor', label: 'Ethereal Watercolor', emoji: '🌊' },
+  { id: 'cyberpunk', label: 'Cyberpunk Neon', emoji: '🌌' },
+  { id: 'ghibli', label: 'Studio Ghibli', emoji: '🍃' },
+  { id: 'gothic', label: 'Dark Gothic Fantasy', emoji: '🕯️' },
+  { id: 'oil', label: 'Vintage Oil Painting', emoji: '🖼️' },
+  { id: 'cosmic', label: 'Cosmic Psychedelic', emoji: '✨' }
 ];
 
 const MOODS = [
@@ -30,7 +40,6 @@ const SAMPLE_DREAMS = [
 
 const VisualizerPage = () => {
   const { user } = useAuthContext();
-  const navigate = useNavigate();
 
   const [dreamContent, setDreamContent] = useState('');
   const [dreamTitle, setDreamTitle] = useState('');
@@ -42,22 +51,23 @@ const VisualizerPage = () => {
   const [error, setError] = useState(null);
   
   const [result, setResult] = useState(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
 
-  // Saved dreams from local storage (for offline / static GitHub Pages mode)
+  const [showKeySettings, setShowKeySettings] = useState(false);
+  const [personalGeminiKey, setPersonalGeminiKey] = useState('');
+  const [keyStatusMsg, setKeyStatusMsg] = useState('');
+
   const [savedDreams, setSavedDreams] = useState([]);
   const [showSavedModal, setShowSavedModal] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('local_dreams') || '[]');
-      setSavedDreams(stored);
-    } catch (e) {
-      console.warn('Could not parse local_dreams:', e);
-    }
+    setSavedDreams(getLocalDreams());
+    setPersonalGeminiKey(getSavedUserGeminiKey());
   }, []);
 
   const loadingMessages = [
@@ -74,6 +84,14 @@ const VisualizerPage = () => {
     }
   };
 
+  const handleSaveKey = () => {
+    setSavedUserGeminiKey(personalGeminiKey);
+    setKeyStatusMsg(personalGeminiKey.trim()
+      ? 'Personal key saved locally in your browser.'
+      : 'Personal key cleared; using built-in Depth Psychology engine.');
+    setTimeout(() => setKeyStatusMsg(''), 3000);
+  };
+
   const handleGenerate = async (e) => {
     e.preventDefault();
     if (!dreamContent.trim()) {
@@ -84,6 +102,8 @@ const VisualizerPage = () => {
     setError(null);
     setIsLoading(true);
     setResult(null);
+    setImageLoaded(false);
+    setImageError(false);
     setIsSaved(false);
     setSaveMessage(null);
 
@@ -91,12 +111,11 @@ const VisualizerPage = () => {
     const interval = setInterval(() => {
       step = (step + 1) % loadingMessages.length;
       setLoadingStep(step);
-    }, 1800);
+    }, 1500);
 
     try {
       let data = null;
 
-      // 1. Attempt backend endpoint first if available
       try {
         const response = await fetch(`${API_BASE_URL}/api/ai/visualize`, {
           method: 'POST',
@@ -108,19 +127,23 @@ const VisualizerPage = () => {
           })
         });
 
-        if (response.ok) {
+        if (response.ok && !isUnavailableBackendResponse(response)) {
           const resJson = await response.json();
           if (resJson.success) {
             data = resJson;
           }
         }
       } catch (backendFetchErr) {
-        console.info("Backend route unavailable, switching to browser AI engine.");
+        console.info("Backend API unavailable, using client-side AI visualizer engine.");
       }
 
-      // 2. Fallback to client-side Gemini / Depth Psychology Engine
       if (!data) {
-        data = await analyzeDreamDirectly(dreamContent.trim(), selectedStyle, selectedMood);
+        data = await analyzeDreamDirectly(
+          dreamContent.trim(),
+          selectedStyle,
+          selectedMood,
+          personalGeminiKey
+        );
       }
 
       clearInterval(interval);
@@ -138,6 +161,22 @@ const VisualizerPage = () => {
     }
   };
 
+  const handleRetryImage = () => {
+    if (!result?.visualizer?.cleanPrompt) return;
+    const newSeed = Math.floor(Math.random() * 999999);
+    const refreshedUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(result.visualizer.cleanPrompt)}?width=1024&height=1024&nologo=true&seed=${newSeed}`;
+    setImageError(false);
+    setImageLoaded(false);
+    setResult((prev) => ({
+      ...prev,
+      visualizer: {
+        ...prev.visualizer,
+        imageUrl: refreshedUrl,
+        seed: newSeed
+      }
+    }));
+  };
+
   const handleCopyPrompt = () => {
     if (result?.visualizer?.imagePrompt) {
       navigator.clipboard.writeText(result.visualizer.imagePrompt);
@@ -151,7 +190,6 @@ const VisualizerPage = () => {
     setSaveMessage(null);
 
     const dreamToSave = {
-      _id: 'local_' + Date.now(),
       title: dreamTitle.trim() || 'My Visualized Dream',
       content: dreamContent.trim(),
       category: selectedMood.toLowerCase().includes('nightmare') ? 'nightmare' : (selectedMood.toLowerCase().includes('lucid') ? 'lucid' : 'normal'),
@@ -164,8 +202,7 @@ const VisualizerPage = () => {
       aiInterpretation: result?.psychology?.overview || ''
     };
 
-    // If user is authenticated with a live backend, try saving to server
-    if (user && API_BASE_URL) {
+    if (user && !user.isLocal) {
       try {
         const response = await fetch(`${API_BASE_URL}/api/dreams`, {
           method: 'POST',
@@ -176,7 +213,7 @@ const VisualizerPage = () => {
           body: JSON.stringify(dreamToSave)
         });
 
-        if (response.ok) {
+        if (response.ok && !isUnavailableBackendResponse(response)) {
           setIsSaved(true);
           setSaveMessage("✨ Successfully saved to your cloud Dream Journal!");
           setSaveLoading(false);
@@ -187,12 +224,9 @@ const VisualizerPage = () => {
       }
     }
 
-    // Save to local storage (works universally on GitHub Pages)
     try {
-      const existing = JSON.parse(localStorage.getItem('local_dreams') || '[]');
-      const updated = [dreamToSave, ...existing.filter(d => d.content !== dreamToSave.content)];
-      localStorage.setItem('local_dreams', JSON.stringify(updated));
-      setSavedDreams(updated);
+      const { dreams } = createLocalDreamEntry(dreamToSave);
+      setSavedDreams(dreams);
       setIsSaved(true);
       setSaveMessage("✨ Successfully saved to your Dream Journal!");
     } catch (e) {
@@ -204,9 +238,7 @@ const VisualizerPage = () => {
   };
 
   const handleDeleteSavedDream = (id) => {
-    const updated = savedDreams.filter(d => d._id !== id);
-    setSavedDreams(updated);
-    localStorage.setItem('local_dreams', JSON.stringify(updated));
+    setSavedDreams(deleteLocalDream(id));
   };
 
   return (
@@ -214,13 +246,13 @@ const VisualizerPage = () => {
       {/* Header */}
       <header className="page-header visualizer-header">
         <span className="badge-glow">✨ Public Interactive AI Tool</span>
-        <h1>AI Dream Interpreter & Visualizer</h1>
+        <h1>AI Dream Interpreter &amp; Visualizer</h1>
         <p>
-          Describe your subconscious experience. Our Gemini-powered agent decodes the psychological meaning and renders your custom dream visual.
+          Describe your subconscious experience. Our intelligent dream analyst decodes its psychological meaning and renders custom dream artwork.
         </p>
 
-        {savedDreams.length > 0 && (
-          <div style={{ marginTop: '15px' }}>
+        <div style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {savedDreams.length > 0 && (
             <button
               type="button"
               className="btn-sample-chip"
@@ -229,6 +261,45 @@ const VisualizerPage = () => {
             >
               📖 View Saved Dreams ({savedDreams.length})
             </button>
+          )}
+          <button
+            type="button"
+            className="btn-sample-chip"
+            onClick={() => setShowKeySettings(!showKeySettings)}
+          >
+            ⚙️ {personalGeminiKey ? 'Gemini Key Connected' : 'AI Engine Settings'}
+          </button>
+        </div>
+
+        {showKeySettings && (
+          <div style={{
+            marginTop: '14px',
+            padding: '14px',
+            borderRadius: '10px',
+            background: 'rgba(15, 23, 42, 0.75)',
+            border: '1px solid rgba(148, 163, 184, 0.25)',
+            maxWidth: '580px',
+            marginInline: 'auto',
+            textAlign: 'left'
+          }}>
+            <p style={{ fontSize: '0.88rem', marginBottom: '8px', color: '#cbd5e1' }}>
+              Works automatically out of the box. Optionally connect your own Google Gemini API key (stored strictly in your own browser for enhanced LLM analysis):
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                type="password"
+                placeholder="Paste personal Gemini API key (optional)..."
+                value={personalGeminiKey}
+                onChange={(e) => setPersonalGeminiKey(e.target.value)}
+                style={{ flex: 1, minWidth: '220px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-input-bg)', color: 'var(--color-text)' }}
+              />
+              <button type="button" className="btn-sample-chip" onClick={handleSaveKey}>
+                Save Key
+              </button>
+            </div>
+            {keyStatusMsg && (
+              <p style={{ fontSize: '0.82rem', color: '#86efac', marginTop: '6px' }}>{keyStatusMsg}</p>
+            )}
           </div>
         )}
       </header>
@@ -236,7 +307,6 @@ const VisualizerPage = () => {
       {/* Main Interactive Form */}
       <section className="visualizer-form-card">
         <form onSubmit={handleGenerate}>
-          {/* Dream Title (Optional) */}
           <div className="input-group">
             <label>Dream Title (optional):</label>
             <input
@@ -247,7 +317,6 @@ const VisualizerPage = () => {
             />
           </div>
 
-          {/* Dream Narrative */}
           <div className="input-group">
             <label>What did you experience in your dream? <span className="req">*</span></label>
             <textarea
@@ -259,7 +328,6 @@ const VisualizerPage = () => {
             />
           </div>
 
-          {/* Preset Prompts */}
           <div className="sample-prompts">
             <span className="sample-label">💡 Need inspiration? Try:</span>
             {SAMPLE_DREAMS.map((sample, idx) => (
@@ -274,28 +342,26 @@ const VisualizerPage = () => {
             ))}
           </div>
 
-          {/* Art Style Selector */}
-          <div className="input-group">
+          <div className="selection-section">
             <label>Select Dream Art Style:</label>
-            <div className="style-grid">
+            <div className="style-chips-grid">
               {ART_STYLES.map((style) => (
                 <button
                   type="button"
                   key={style.id}
-                  className={`style-card ${selectedStyle === style.label ? 'active' : ''}`}
+                  className={`style-chip ${selectedStyle === style.label ? 'active' : ''}`}
                   onClick={() => setSelectedStyle(style.label)}
                 >
-                  <span className="style-emoji">{style.emoji}</span>
-                  <span className="style-label">{style.label}</span>
+                  <span className="chip-emoji">{style.emoji}</span>
+                  <span className="chip-label">{style.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Emotional Mood Selector */}
-          <div className="input-group">
+          <div className="selection-section">
             <label>Dominant Emotional Mood:</label>
-            <div className="mood-chips">
+            <div className="mood-chips-row">
               {MOODS.map((m) => (
                 <button
                   type="button"
@@ -311,23 +377,24 @@ const VisualizerPage = () => {
 
           {error && <div className="error-alert">{error}</div>}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="btn-visualize-submit"
-            disabled={isLoading || !dreamContent.trim()}
-          >
-            {isLoading ? '🔮 Interpreting & Generating Artwork...' : '✨ Interpret & Visualize Dream'}
-          </button>
+          <div className="action-row">
+            <button
+              type="submit"
+              className="btn-visualize-submit"
+              disabled={isLoading || !dreamContent.trim()}
+            >
+              {isLoading ? '🔮 Interpreting & Generating Artwork...' : '✨ Interpret & Visualize Dream'}
+            </button>
+          </div>
         </form>
       </section>
 
       {/* Loading Progress State */}
       {isLoading && (
-        <section className="loading-state-card">
-          <div className="spinner-cosmic"></div>
-          <h3>Unlocking Subconscious Imagery</h3>
-          <p className="loading-step-text">{loadingMessages[loadingStep]}</p>
+        <section className="visualizer-loading-card">
+          <div className="spinner-orbit"></div>
+          <p className="loading-text">Unlocking Subconscious Imagery</p>
+          <p className="loading-sub">{loadingMessages[loadingStep]}</p>
           <div className="progress-bar-container">
             <div className="progress-bar-fill" style={{ width: `${((loadingStep + 1) / loadingMessages.length) * 100}%` }}></div>
           </div>
@@ -336,144 +403,185 @@ const VisualizerPage = () => {
 
       {/* Results View */}
       {result && !isLoading && (
-        <section className="visualizer-results">
-          <div className="results-grid">
-            {/* Left Column: Psychological Analysis */}
-            <div className="card-result-panel psychology-panel">
-              <div className="panel-badge">🧠 Psychological Analysis</div>
-              <h2>Subconscious Deconstruction</h2>
-              
-              <div className="analysis-section">
-                <h3>Core Meaning</h3>
-                <p className="analysis-overview">{result.psychology?.overview}</p>
-              </div>
-
-              {result.psychology?.archetypes?.length > 0 && (
-                <div className="analysis-section">
-                  <h3>Jungian Archetypes Identified</h3>
-                  <div className="archetype-list">
-                    {result.psychology.archetypes.map((arch, idx) => (
-                      <div key={idx} className="archetype-item">
-                        <span className="archetype-name">🏛️ {arch.name}:</span>
-                        <span className="archetype-desc">{arch.explanation}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {result.psychology?.keySymbols?.length > 0 && (
-                <div className="analysis-section">
-                  <h3>Dream Symbols Decoded</h3>
-                  <div className="symbol-chips">
-                    {result.psychology.keySymbols.map((item, idx) => (
-                      <div key={idx} className="symbol-chip">
-                        <strong>{item.symbol}</strong>
-                        <span>{item.meaning}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {result.psychology?.journalPrompts?.length > 0 && (
-                <div className="analysis-section">
-                  <h3>Reflective Journal Prompts</h3>
-                  <ul className="journal-prompts">
-                    {result.psychology.journalPrompts.map((q, idx) => (
-                      <li key={idx}>✍️ {q}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {result.psychology?.colorPalette?.length > 0 && (
-                <div className="analysis-section">
-                  <h3>Subconscious Color Palette</h3>
-                  <div className="color-palette-bar">
-                    {result.psychology.colorPalette.map((hex, idx) => (
-                      <div
-                        key={idx}
-                        className="palette-swatch"
-                        style={{ backgroundColor: hex }}
-                        title={hex}
-                      >
-                        <span>{hex}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+        <section className="visualizer-results-grid">
+          {/* Left Column: Psychological Analysis */}
+          <div className="result-card">
+            <div className="card-badge">🧠 Psychological Analysis</div>
+            <h2>Subconscious Deconstruction</h2>
+            
+            <div className="psych-sub-block">
+              <h3>Core Meaning</h3>
+              <p className="psychology-overview">{result.psychology?.overview}</p>
             </div>
 
-            {/* Right Column: AI Artwork & Prompt */}
-            <div className="card-result-panel artwork-panel">
-              <div className="panel-badge">🎨 Dream Art Visualization</div>
-              <h2>Visual Artwork</h2>
+            {result.psychology?.archetypes?.length > 0 && (
+              <div className="psych-sub-block">
+                <h3>Jungian Archetypes Identified</h3>
+                <div className="archetypes-list">
+                  {result.psychology.archetypes.map((arch, idx) => (
+                    <div key={idx} className="archetype-item">
+                      <strong>🏛️ {arch.name}</strong>
+                      <span>{arch.explanation}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              {/* Generated Image Frame */}
-              <div className="image-frame">
+            {result.psychology?.keySymbols?.length > 0 && (
+              <div className="psych-sub-block">
+                <h3>Dream Symbols Decoded</h3>
+                <div className="symbols-list">
+                  {result.psychology.keySymbols.map((item, idx) => (
+                    <div key={idx} className="symbol-pill">
+                      <span className="symbol-name">{item.symbol}</span>
+                      <span className="symbol-meaning">{item.meaning}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {result.psychology?.journalPrompts?.length > 0 && (
+              <div className="psych-sub-block">
+                <h3>Reflective Journal Prompts</h3>
+                <ul className="prompts-list">
+                  {result.psychology.journalPrompts.map((q, idx) => (
+                    <li key={idx}>✍️ {q}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {result.psychology?.colorPalette?.length > 0 && (
+              <div className="psych-sub-block">
+                <h3>Subconscious Color Palette</h3>
+                <div className="palette-row">
+                  {result.psychology.colorPalette.map((hex, idx) => (
+                    <div
+                      key={idx}
+                      className="palette-swatch"
+                      style={{ backgroundColor: hex }}
+                      title={hex}
+                    >
+                      <span>{hex}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: AI Artwork & Prompt */}
+          <div className="result-card">
+            <div className="card-badge">🎨 Dream Art Visualization</div>
+            <h2>Visual Artwork</h2>
+
+            <div className="image-frame" style={{ position: 'relative' }}>
+              {!imageLoaded && !imageError && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100%',
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  color: '#cbd5e1'
+                }}>
+                  <div className="spinner-orbit"></div>
+                  <p className="loading-sub" style={{ marginTop: '8px' }}>Rendering custom dream artwork...</p>
+                </div>
+              )}
+
+              {imageError ? (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100%',
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  color: '#cbd5e1'
+                }}>
+                  <p style={{ marginBottom: '12px' }}>The image renderer took too long or is busy.</p>
+                  <button type="button" className="btn-action-outline" style={{ flex: 'none' }} onClick={handleRetryImage}>
+                    🔄 Retry Artwork Render
+                  </button>
+                </div>
+              ) : (
                 <img
                   src={result.visualizer?.imageUrl}
                   alt="AI Dream Artwork"
                   className="generated-dream-image"
-                  loading="lazy"
+                  style={{ display: imageLoaded ? 'block' : 'none' }}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => {
+                    setImageLoaded(false);
+                    setImageError(true);
+                  }}
                 />
+              )}
+            </div>
+
+            <div className="artwork-button-group">
+              <a
+                href={result.visualizer?.imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-action-outline"
+              >
+                🔍 View Full Size
+              </a>
+
+              <button
+                type="button"
+                className={`btn-action-primary ${isSaved ? 'btn-saved' : ''}`}
+                onClick={handleSaveToJournal}
+                disabled={saveLoading || isSaved}
+              >
+                {saveLoading ? 'Saving...' : (isSaved ? '✅ Saved in Journal' : '💾 Save to Journal')}
+              </button>
+            </div>
+
+            {saveMessage && (
+              <div className="save-feedback">
+                {saveMessage}{' '}
+                <Link to="/journal" style={{ color: 'inherit', fontWeight: 'bold', textDecoration: 'underline' }}>
+                  Open Journal Archive
+                </Link>
               </div>
+            )}
 
-              {/* Image Actions */}
-              <div className="artwork-button-group">
-                <a
-                  href={result.visualizer?.imageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-action-outline"
-                >
-                  🔍 View Full Size
-                </a>
-
-                <button
-                  type="button"
-                  className={`btn-action-primary ${isSaved ? 'btn-saved' : ''}`}
-                  onClick={handleSaveToJournal}
-                  disabled={saveLoading || isSaved}
-                >
-                  {saveLoading ? 'Saving...' : (isSaved ? '✅ Saved in Journal' : '💾 Save to Journal')}
+            <div className="prompt-display-box">
+              <div className="prompt-header">
+                <span>🤖 Crafted AI Image Prompt</span>
+                <button type="button" className="btn-copy-prompt" onClick={handleCopyPrompt}>
+                  {copiedPrompt ? '✅ Copied!' : '📋 Copy Prompt'}
                 </button>
               </div>
-
-              {saveMessage && <div className="save-feedback">{saveMessage}</div>}
-
-              {/* AI Image Prompt Card */}
-              <div className="prompt-display-box">
-                <div className="prompt-header">
-                  <span>🤖 Crafted AI Image Prompt</span>
-                  <button type="button" className="btn-copy-prompt" onClick={handleCopyPrompt}>
-                    {copiedPrompt ? '✅ Copied!' : '📋 Copy Prompt'}
-                  </button>
-                </div>
-                <p className="prompt-text">{result.visualizer?.imagePrompt}</p>
-                <div className="prompt-meta">
-                  <span>Style: <strong>{result.visualizer?.artStyle}</strong></span>
-                  <span>Engine: <strong>Imagen / FLUX Optimized</strong></span>
-                </div>
+              <p className="prompt-text">{result.visualizer?.imagePrompt}</p>
+              <div className="prompt-meta">
+                <span>Style: <strong>{result.visualizer?.artStyle}</strong></span>
+                <span>Engine: <strong>FLUX / Diffusion Optimized</strong></span>
               </div>
             </div>
           </div>
         </section>
       )}
 
-      {/* Saved Dreams Modal / Drawer */}
+      {/* Saved Dreams Modal */}
       {showSavedModal && (
         <div className="modal-backdrop" onClick={() => setShowSavedModal(false)}>
           <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>📖 Your Saved Dream Journal ({savedDreams.length})</h2>
+              <h2 style={{ margin: 0 }}>📖 Your Saved Dream Journal ({savedDreams.length})</h2>
               <button className="btn-close" onClick={() => setShowSavedModal(false)}>✕</button>
             </div>
 
             {savedDreams.length === 0 ? (
-              <p>No dreams saved yet. Generate a dream visual and click "Save to Journal"!</p>
+              <p>No dreams saved yet. Generate a dream visual and click &quot;Save to Journal&quot;!</p>
             ) : (
               <div style={{ display: 'grid', gap: '20px' }}>
                 {savedDreams.map((d) => (
@@ -511,11 +619,11 @@ const VisualizerPage = () => {
         <section className="public-cta-banner">
           <h2>Track Your Subconscious Journey</h2>
           <p>
-            Capture your dreams, track emotional patterns, view monthly heatmaps, and re-generate artwork anytime.
+            Capture your dreams, track emotional patterns, view monthly heatmaps, and explore symbolism anytime.
           </p>
           <div className="cta-buttons">
-            <Link to="/about" className="btn-cta-signup">Learn About Jungian Dream Analysis</Link>
-            <Link to="/contact" className="btn-cta-login">Contact & Feedback</Link>
+            <Link to="/journal" className="btn-cta-signup">Open Dream Archive</Link>
+            <Link to="/about" className="btn-cta-login">Learn Methodology</Link>
           </div>
         </section>
       )}

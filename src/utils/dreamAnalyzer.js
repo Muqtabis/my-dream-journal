@@ -1,47 +1,170 @@
 /**
- * Universal Dream Analyzer & Visualizer Engine
- * Supports server endpoint, direct Gemini 2.5 Flash client-side generation,
- * and resilient depth psychology archetype fallback.
+ * Client-Side Dream Analyzer & Visualizer Engine
+ * Handles optional user-supplied Gemini API keys and provides an intelligent
+ * Jungian Depth Psychology & Pollinations.ai Art Prompt fallback for static hosting.
  */
 
-const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyCnhjNKm960iewHgGnMJw7-NOFOBwWikGQ';
+const USER_GEMINI_KEY_STORAGE = 'dream_journal_custom_gemini_key';
 
-export async function analyzeDreamDirectly(dreamContent, artStyle, mood) {
-  const selectedStyle = artStyle || 'Surrealism (Salvador Dalí)';
+export function getSavedUserGeminiKey() {
+  try {
+    return localStorage.getItem(USER_GEMINI_KEY_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setSavedUserGeminiKey(key) {
+  try {
+    const trimmed = (key || '').trim();
+    if (trimmed) {
+      localStorage.setItem(USER_GEMINI_KEY_STORAGE, trimmed);
+    } else {
+      localStorage.removeItem(USER_GEMINI_KEY_STORAGE);
+    }
+  } catch {
+    // Ignore storage errors in restricted environments
+  }
+}
+
+const STYLE_VISUAL_MODIFIERS = {
+  'Surrealism (Dalí)': 'surrealist dreamscape painting in the style of Salvador Dali and Rene Magritte, impossible geometry, crisp ethereal lighting, museum fine art',
+  'Ethereal Watercolor': 'delicate ethereal watercolor painting on cold-press textured paper, luminous washes, translucent pigment bleeds, poetic atmosphere',
+  'Cyberpunk Neon': 'cinematic cyberpunk neon dreamscape, atmospheric volumetric fog, iridescent reflections, electric cyan and magenta chiaroscuro',
+  'Studio Ghibli': 'hand-painted Studio Ghibli anime scenic art, lush atmospheric clouds, warm golden sunlight, whimsical painterly detail',
+  'Dark Gothic Fantasy': 'dark gothic fantasy oil painting, dramatic chiaroscuro shadows, silver moonlight through mist, ornate moody architecture',
+  'Vintage Oil Painting': 'classical baroque oil painting, rich textured impasto brushstrokes, warm golden hour glow, chiaroscuro depth',
+  'Cosmic Psychedelic': 'cosmic visionary artwork, swirling nebulae, sacred geometric light patterns, bioluminescent stars, astral depth'
+};
+
+const COLOR_PALETTES = {
+  'Surrealism (Dalí)': ['#c97a3e', '#3d5a80', '#e0fbfc', '#293241'],
+  'Ethereal Watercolor': ['#a8dadc', '#f1faee', '#e63946', '#457b9d'],
+  'Cyberpunk Neon': ['#ff007f', '#00f0ff', '#7b2cbf', '#0f0e17'],
+  'Studio Ghibli': ['#588157', '#a3b18a', '#dad7cd', '#344e41'],
+  'Dark Gothic Fantasy': ['#1b1b1e', '#870058', '#495057', '#e9ecef'],
+  'Vintage Oil Painting': ['#d4af37', '#800020', '#2b1d0c', '#f4ebd0'],
+  'Cosmic Psychedelic': ['#6f2dbd', '#a663cc', '#b298dc', '#b8d0eb']
+};
+
+const SYMBOL_DICTIONARY = [
+  {
+    keywords: ['water', 'sea', 'ocean', 'wave', 'swim', 'drown', 'river', 'lake', 'rain'],
+    symbol: 'Waters of the Unconscious',
+    meaning: 'In Jungian symbolism, open water mirrors emotional depth, intuition, and currents beneath conscious awareness.'
+  },
+  {
+    keywords: ['fly', 'flying', 'float', 'floating', 'wings', 'soar', 'sky', 'cloud'],
+    symbol: 'Ascent & Flight',
+    meaning: 'Rising above gravity reflects a desire for autonomy, perspective, and liberation from waking constraints.'
+  },
+  {
+    keywords: ['fall', 'falling', 'cliff', 'drop', 'abyss'],
+    symbol: 'The Descent',
+    meaning: 'Falling highlights moments of transition where familiar structures give way and the psyche learns to surrender control.'
+  },
+  {
+    keywords: ['door', 'gate', 'portal', 'key', 'lock', 'threshold', 'stair', 'bridge'],
+    symbol: 'The Threshold',
+    meaning: 'Doors, bridges, and portals mark psychological passages between a known chapter of identity and emerging possibilities.'
+  },
+  {
+    keywords: ['mirror', 'reflection', 'glass', 'double', 'twin'],
+    symbol: 'Mirror & Self-Reflection',
+    meaning: 'Reflections confront how your outer persona relates to inner authenticity and unrecognized facets of selfhood.'
+  },
+  {
+    keywords: ['forest', 'tree', 'woods', 'jungle', 'garden', 'moss'],
+    symbol: 'The Living Labyrinth',
+    meaning: 'Forest imagery embodies untamed instinct, organic growth, and quiet introspection away from social expectations.'
+  },
+  {
+    keywords: ['clock', 'time', 'watch', 'hour', 'late', 'melting'],
+    symbol: 'Temporal Pressure',
+    meaning: 'Clocks and distorted time reflect internal urgency, evolving priorities, or a longing to step outside rigid schedules.'
+  },
+  {
+    keywords: ['book', 'library', 'page', 'whisper', 'letter', 'write', 'memory'],
+    symbol: 'The Inner Archive',
+    meaning: 'Books and libraries symbolize accumulated memory, unspoken stories, and wisdom waiting to be consciously integrated.'
+  },
+  {
+    keywords: ['chase', 'running', 'monster', 'shadow', 'dark', 'pursued', 'hide'],
+    symbol: 'Pursuit & Confrontation',
+    meaning: 'Being pursued often dramatizes an unresolved feeling, ambition, or shadow trait asking to be turned toward and understood.'
+  },
+  {
+    keywords: ['moon', 'star', 'sun', 'cosmos', 'planet', 'night', 'aurora'],
+    symbol: 'Celestial Luminaries',
+    meaning: 'Moons and stars represent guiding intuition during uncertainty—lights illuminating the unknown territory of the night.'
+  },
+  {
+    keywords: ['train', 'car', 'road', 'ship', 'journey', 'desert', 'travel'],
+    symbol: 'Vehicle of Direction',
+    meaning: 'Vehicles and landscapes reflect momentum, life trajectory, and whether you feel aligned with the pace of change.'
+  },
+  {
+    keywords: ['house', 'room', 'attic', 'basement', 'city', 'tower'],
+    symbol: 'Architecture of the Psyche',
+    meaning: 'Rooms and buildings map the structure of memory and consciousness—hidden floors often signify untapped potential.'
+  },
+  {
+    keywords: ['bird', 'wolf', 'snake', 'cat', 'horse', 'animal', 'butterfly'],
+    symbol: 'Instinctual Guide',
+    meaning: 'Animals frequently carry instinctual intelligence, transformation, and vitality operating beneath analytical thought.'
+  },
+  {
+    keywords: ['fire', 'flame', 'light', 'lantern', 'glow', 'bioluminescent'],
+    symbol: 'Transformative Light',
+    meaning: 'Inner fire or luminescence signals creative awakening, purification, and clarity emerging within mystery.'
+  }
+];
+
+function buildPollinationsImageUrl(imagePrompt) {
+  const cleanPrompt = imagePrompt
+    .slice(0, 400)
+    .replace(/[^\w\s,.-]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const seed = Math.floor(Math.random() * 999999);
+  return {
+    cleanPrompt,
+    seed,
+    imageUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=1024&nologo=true&seed=${seed}`
+  };
+}
+
+/**
+ * Analyze a dream directly in the browser.
+ * Uses user-provided Gemini key if saved locally; otherwise executes the
+ * built-in Depth Psychology analyzer + Pollinations image synthesizer.
+ */
+export async function analyzeDreamDirectly(dreamContent, artStyle, mood, explicitApiKey = '') {
+  const selectedStyle = artStyle || 'Surrealism (Dalí)';
   const selectedMood = mood || 'Mysterious';
+  const apiKey = (explicitApiKey || getSavedUserGeminiKey()).trim();
 
-  // 1. Try Gemini 2.5 Flash via REST API
-  if (GEMINI_API_KEY) {
+  if (apiKey) {
     try {
       const systemPrompt = `
 You are an expert Depth Psychologist, Jungian Dream Analyst, and visionary AI Art Prompt Engineer.
 Analyze the user's dream narrative thoroughly.
 
-The user chose the following preferences:
+Preferences:
 - Desired Art Style: "${selectedStyle}"
 - Emotional Tone: "${selectedMood}"
 
-You MUST respond strictly with a valid JSON object (NO extra text or markdown outside the JSON block).
-The JSON object must follow this exact schema:
-
+Respond strictly with valid JSON matching this schema (no markdown fences):
 {
   "psychologicalAnalysis": {
-    "overview": "A rich 2-3 sentence psychological summary of what subconscious thoughts or waking life conflicts this dream represents.",
-    "archetypes": [
-      { "name": "Name of archetype (e.g. The Shadow, The Threshold, The Anima, The Journey)", "explanation": "Brief explanation of its role in this dream." }
-    ],
-    "keySymbols": [
-      { "symbol": "Symbol name (e.g. Ocean, Falling, Locked Door)", "meaning": "Subconscious psychological meaning in context." }
-    ],
-    "journalPrompts": [
-      "Deep self-reflection question 1 for the user to journal about",
-      "Deep self-reflection question 2",
-      "Deep self-reflection question 3"
-    ],
+    "overview": "2-3 sentence psychological summary.",
+    "archetypes": [{ "name": "Archetype", "explanation": "Brief role in dream." }],
+    "keySymbols": [{ "symbol": "Symbol", "meaning": "Meaning in context." }],
+    "journalPrompts": ["Question 1", "Question 2", "Question 3"],
     "colorPalette": ["#hex1", "#hex2", "#hex3", "#hex4"]
   },
   "visualizer": {
-    "imagePrompt": "A masterfully descriptive, highly visual prompt for modern text-to-image AI generators. Describe the exact scene, subject, focal point, lighting (e.g. volumetric, chiaroscuro, bioluminescent), texture, atmosphere, color grading, and framing in the style of ${selectedStyle}. Avoid abstract words like 'scary' or 'deep' - use purely visual sensory descriptions.",
+    "imagePrompt": "Rich visual scene prompt in style of ${selectedStyle}.",
     "artStyle": "${selectedStyle}",
     "negativePrompt": "blurry, low quality, deformed, text, watermark, bad anatomy, noisy, cropped"
   }
@@ -51,20 +174,15 @@ Dream Narrative:
 "${dreamContent.trim()}"
 `;
 
-      const requestBody = {
-        contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1200,
-        }
-      };
-
       const apiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 1200 }
+          })
         }
       );
 
@@ -74,14 +192,12 @@ Dream Narrative:
         if (rawText) {
           const cleanedText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanedText);
-
-          const imagePrompt = parsed.visualizer?.imagePrompt || `${dreamContent.slice(0, 150)} in the style of ${selectedStyle}`;
-          const cleanPrompt = imagePrompt.slice(0, 400).replace(/[^\w\s,.-]/gi, '');
-          const seed = Math.floor(Math.random() * 999999);
-          const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=1024&nologo=true&enhance=true&seed=${seed}`;
+          const imagePrompt = parsed.visualizer?.imagePrompt || `${dreamContent.slice(0, 160)}, ${selectedStyle}`;
+          const { cleanPrompt, seed, imageUrl } = buildPollinationsImageUrl(imagePrompt);
 
           return {
             success: true,
+            source: 'gemini-personal-key',
             psychology: parsed.psychologicalAnalysis,
             visualizer: {
               ...parsed.visualizer,
@@ -92,91 +208,105 @@ Dream Narrative:
           };
         }
       }
-    } catch (geminiError) {
-      console.warn("Direct Gemini call bypassed, utilizing Depth Psychology engine:", geminiError);
+    } catch (err) {
+      console.warn('Personal Gemini API request bypassed, using built-in Depth Psychology analyzer:', err);
     }
   }
 
-  // 2. Intelligent Depth Psychology Archetype Generator (guaranteed 100% uptime fallback)
   return generatePsychologicalFallback(dreamContent, selectedStyle, selectedMood);
 }
 
-function generatePsychologicalFallback(dreamContent, artStyle, mood) {
-  const text = dreamContent.toLowerCase();
-  const archetypes = [];
+/**
+ * Generates an insightful Jungian interpretation and rich text-to-image prompt
+ * directly from the dream narrative without requiring external credentials.
+ */
+export function generatePsychologicalFallback(dreamContent, artStyle, mood) {
+  const lower = dreamContent.toLowerCase();
   const keySymbols = [];
 
-  // Symbol Detection
-  if (text.includes('water') || text.includes('sea') || text.includes('ocean') || text.includes('river')) {
-    keySymbols.push({ symbol: 'Vast Waters', meaning: 'Represents the deep subconscious, fluid emotional states, and primal intuitive wisdom waiting to surface.' });
-  }
-  if (text.includes('fly') || text.includes('flight') || text.includes('sky') || text.includes('float')) {
-    keySymbols.push({ symbol: 'Floating / Flight', meaning: 'Signifies an urge to rise above current waking limitations, seeking psychological freedom and higher perspective.' });
-  }
-  if (text.includes('fall') || text.includes('drop')) {
-    keySymbols.push({ symbol: 'The Descent', meaning: 'Reflects feelings of vulnerability, releasing control, or confronting hidden fears within waking situations.' });
-  }
-  if (text.includes('door') || text.includes('gate') || text.includes('portal') || text.includes('threshold')) {
-    keySymbols.push({ symbol: 'The Threshold Portal', meaning: 'Points to an imminent personal transition or an unexplored aspect of identity calling for attention.' });
-  }
-  if (text.includes('mirror') || text.includes('reflection')) {
-    keySymbols.push({ symbol: 'The Mirror', meaning: 'Confrontation with true self-perception, unveiling the contrast between persona and the inner self.' });
-  }
-  if (text.includes('forest') || text.includes('tree') || text.includes('wood')) {
-    keySymbols.push({ symbol: 'The Primordial Forest', meaning: 'The labyrinth of the unconscious psyche, embodying natural instinct, mystery, and personal growth.' });
-  }
-  if (text.includes('clock') || text.includes('time') || text.includes('late')) {
-    keySymbols.push({ symbol: 'Temporal Distortion', meaning: 'Anxiety or preoccupation with mortality, missed opportunities, or internal urgency to act.' });
+  for (const entry of SYMBOL_DICTIONARY) {
+    if (entry.keywords.some((kw) => new RegExp(`\\b${kw}`, 'i').test(lower))) {
+      keySymbols.push({ symbol: entry.symbol, meaning: entry.meaning });
+      if (keySymbols.length >= 4) break;
+    }
   }
 
-  // Default symbols if few matched
   if (keySymbols.length === 0) {
-    keySymbols.push({ symbol: 'The Central Narrative', meaning: 'A symbolic dramatization of current internal questions seeking harmony and clarity.' });
-    keySymbols.push({ symbol: 'The Unfolding Journey', meaning: 'Represents your psyche navigating evolving relationships and waking life decisions.' });
+    keySymbols.push(
+      {
+        symbol: 'The Unfolding Motif',
+        meaning: 'A symbolic scenario staged by the psyche to process nuanced waking emotions in visual form.'
+      },
+      {
+        symbol: 'Atmospheric Shift',
+        meaning: 'Highlights how your emotional compass responds when familiar routines dissolve into unfamiliar terrain.'
+      }
+    );
   }
 
-  // Archetype Synthesis
-  if (mood.toLowerCase().includes('nightmare') || text.includes('fear') || text.includes('chase') || text.includes('dark')) {
-    archetypes.push({ name: 'The Shadow', explanation: 'Unintegrated instincts, repressed fears, or hidden potential awaiting conscious acknowledgment.' });
+  const archetypes = [];
+  const lowerMood = mood.toLowerCase();
+
+  if (lowerMood.includes('nightmare') || /chase|dark|shadow|fear|trap|fall/.test(lower)) {
+    archetypes.push({
+      name: 'The Shadow',
+      explanation: 'Confrontation with unexamined tension, suppressed instincts, or hidden creative strength seeking acknowledgment.'
+    });
+  } else if (lowerMood.includes('lucid') || /fly|light|sky|star|create/.test(lower)) {
+    archetypes.push({
+      name: 'The Transcendent Function',
+      explanation: 'Active dialogue between conscious willpower and intuitive imagination, opening lucid clarity.'
+    });
   } else {
-    archetypes.push({ name: 'The Self (Individuation)', explanation: 'The psyche striving toward wholeness, uniting conscious desires with subconscious intuition.' });
+    archetypes.push({
+      name: 'The Self (Individuation)',
+      explanation: 'The organizing center of the psyche integrating diverse feelings and memories into a coherent inner compass.'
+    });
   }
-  archetypes.push({ name: 'The Threshold Guardian', explanation: 'A boundary between the familiar conscious self and the unknown territories of your inner world.' });
 
-  const colorPalettes = {
-    'Surrealism (Salvador Dalí)': ['#c97a3e', '#3d5a80', '#e0fbfc', '#293241'],
-    'Ethereal Watercolor': ['#a8dadc', '#f1faee', '#e63946', '#457b9d'],
-    'Cyberpunk Neon': ['#ff007f', '#00f0ff', '#7b2cbf', '#0f0e17'],
-    'Studio Ghibli': ['#588157', '#a3b18a', '#dad7cd', '#344e41'],
-    'Dark Gothic Fantasy': ['#1b1b1e', '#870058', '#495057', '#e9ecef'],
-    'Vintage Oil Painting': ['#d4af37', '#800020', '#2b1d0c', '#f4ebd0'],
-    'Cosmic Psychedelic': ['#6f2dbd', '#a663cc', '#b298dc', '#b8d0eb']
-  };
+  if (/door|bridge|ocean|path|train|labyrinth|mirror/.test(lower)) {
+    archetypes.push({
+      name: 'The Threshold',
+      explanation: 'Signals a liminal turning point between what is familiar and an emerging personal shift.'
+    });
+  } else {
+    archetypes.push({
+      name: 'The Anima / Animus (Inner Guide)',
+      explanation: 'The relational bridge connecting outer daily roles with authentic emotional intuition.'
+    });
+  }
 
-  const palette = colorPalettes[artStyle] || ['#6366f1', '#ec4899', '#8b5cf6', '#14b8a6'];
-  const descriptiveWords = dreamContent.slice(0, 160).replace(/[^\w\s,]/gi, ' ');
-  const imagePrompt = `Masterpiece cinematic visualization of ${descriptiveWords}, rendered in distinctive ${artStyle}, emotional mood of ${mood}, atmospheric volumetric lighting, rich textural depth, 8k resolution, symmetrical balanced composition`;
-  const cleanPrompt = imagePrompt.slice(0, 400).replace(/[^\w\s,.-]/gi, '');
-  const seed = Math.floor(Math.random() * 999999);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=1024&nologo=true&enhance=true&seed=${seed}`;
+  const primarySymbolNames = keySymbols.map((s) => s.symbol.toLowerCase()).slice(0, 2).join(' and ');
+  const overview = `Viewed through a ${mood.toLowerCase()} emotional lens, this dream weaves ${primarySymbolNames} into an inner dialogue about transition and awareness. Rather than predicting external events, the narrative invites you to notice where waking habits meet unspoken feelings seeking space and expression.`;
+
+  const styleModifier = STYLE_VISUAL_MODIFIERS[artStyle] || `${artStyle}, fine art masterpiece, atmospheric lighting`;
+  const narrativeVisualCore = dreamContent
+    .trim()
+    .slice(0, 175)
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s,.'-]/g, '');
+
+  const imagePrompt = `${narrativeVisualCore}. Scene bathed in a ${mood.toLowerCase()} atmosphere, rendered as ${styleModifier}, cinematic composition, volumetric light, rich depth, intricate sensory detail, 8k`;
+  const { cleanPrompt, seed, imageUrl } = buildPollinationsImageUrl(imagePrompt);
 
   return {
     success: true,
+    source: 'depth-psychology-engine',
     psychology: {
-      overview: `Your dream touches upon vital subconscious motifs. The imagery reveals a dialogue between your waking aspirations and deep inner impulses, highlighted by the ${mood.toLowerCase()} emotional atmosphere.`,
+      overview,
       archetypes,
       keySymbols,
       journalPrompts: [
-        "What aspect of your waking life feels most aligned with the emotions felt in this dream?",
-        "If the central symbol in this dream could speak, what guidance would it offer you today?",
-        "Where in your routine are you being invited to step beyond your comfort zone?"
+        `Where in your waking week have you felt a similar "${mood.toLowerCase()}" emotional undercurrent?`,
+        `If "${keySymbols[0].symbol}" in this dream offered you one direct piece of advice, what would it say?`,
+        'What small boundary or creative shift would help honor what surfaced during this dream?'
       ],
-      colorPalette: palette
+      colorPalette: COLOR_PALETTES[artStyle] || ['#6366f1', '#ec4899', '#8b5cf6', '#14b8a6']
     },
     visualizer: {
       imagePrompt,
       artStyle,
-      negativePrompt: "blurry, low quality, deformed, text, watermark, bad anatomy, noisy, cropped",
+      negativePrompt: 'blurry, low quality, deformed, text, watermark, bad anatomy, noisy, cropped',
       imageUrl,
       cleanPrompt,
       seed

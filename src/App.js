@@ -16,6 +16,8 @@ import Footer from './components/Footer';
 
 function App() {
   const { user } = useAuthContext();
+  const savedTheme = localStorage.getItem('dreamTheme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
 
   return (
     <div className="App">
@@ -29,26 +31,30 @@ function App() {
               element={<VisualizerPage />} 
             />
 
-            {/* User Main Journal Route */}
+            {/* Main Journal Archive Route (supports cloud accounts and local browser mode) */}
+            <Route 
+              path="/journal" 
+              element={<HomePage />} 
+            />
             <Route 
               path="/" 
-              element={user ? <HomePage /> : <Navigate to="/visualizer" />} 
+              element={user ? <HomePage /> : <Navigate to="/visualizer" replace />} 
             />
 
             {/* Auth Routes */}
             <Route 
               path="/login" 
-              element={!user ? <LoginPage /> : <Navigate to="/" />} 
+              element={!user ? <LoginPage /> : <Navigate to="/" replace />} 
             />
             <Route 
               path="/signup" 
-              element={!user ? <SignupPage /> : <Navigate to="/" />} 
+              element={!user ? <SignupPage /> : <Navigate to="/" replace />} 
             />
 
-            {/* User Stats Route */}
+            {/* Dream Analytics Route */}
             <Route 
               path="/stats" 
-              element={user ? <StatsPage /> : <Navigate to="/login" />} 
+              element={<StatsPage />} 
             />
 
             {/* Mandatory Trust & Transparency Routes */}

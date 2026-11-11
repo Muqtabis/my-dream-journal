@@ -4,15 +4,24 @@ import { useAuthContext } from '../hooks/useAuthContext';
 import EditDreamModal from '../components/EditDreamModal';
 import InterpretationModal from '../components/InterpretationModal';
 import { API_BASE_URL } from '../config';
+import {
+  getLocalDreams,
+  filterLocalDreams,
+  createLocalDreamEntry,
+  deleteLocalDream,
+  isUnavailableBackendResponse
+} from '../utils/localDreamStore';
+
+const INITIAL_DREAM_FORM = {
+  title: '', content: '', category: 'normal', mood: 5,
+  tags: '', isLucid: false, isRecurring: false
+};
 
 function HomePage() {
   const [dreams, setDreams] = useState([]);
-  const [currentDream, setCurrentDream] = useState({
-    title: '', content: '', category: 'normal', mood: 5,
-    tags: '', isLucid: false, isRecurring: false
-  });
+  const [currentDream, setCurrentDream] = useState(INITIAL_DREAM_FORM);
   
-  // States for all filters (sent to API)
+  // States for all filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterMood, setFilterMood] = useState('');
@@ -50,12 +59,25 @@ function HomePage() {
     school: 'Learning, testing, past experiences'
   };
 
+  const loadFilteredLocalDreams = () => {
+    const allLocal = getLocalDreams();
+    setDreams(filterLocalDreams(allLocal, {
+      category: filterCategory,
+      mood: filterMood,
+      isLucid: filterLucid,
+      q: searchTerm
+    }));
+  };
+
   // --- Data Fetching & Theme ---
   useEffect(() => {
     const fetchDreams = async () => {
-      if (!user) return; 
+      if (!user || user.isLocal) {
+        loadFilteredLocalDreams();
+        return;
+      }
 
-      // Check if user came from visualizer with a pending dream
+      // Migrate pending visualizer dream if logged into backend
       const pendingDream = localStorage.getItem('pending_saved_dream');
       if (pendingDream) {
         try {
@@ -91,23 +113,30 @@ function HomePage() {
       if (filterLucid) params.append('isLucid', filterLucid);
       if (searchTerm) params.append('q', searchTerm);
       const url = `${API_BASE_URL}/api/dreams?${params.toString()}`;
+
       try {
         const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${user.token}` }
         });
+        if (isUnavailableBackendResponse(response)) {
+          loadFilteredLocalDreams();
+          return;
+        }
         const json = await response.json();
         if (response.ok) {
           setDreams(Array.isArray(json) ? json : []); 
         }
       } catch (error) {
-        console.error("Failed to fetch dreams:", error);
+        loadFilteredLocalDreams();
       }
     };
+
     fetchDreams();
     const savedTheme = localStorage.getItem('dreamTheme');
     if (savedTheme) {
       setTheme(savedTheme);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, searchTerm, filterCategory, filterMood, filterLucid]);
 
   useEffect(() => {
@@ -115,50 +144,71 @@ function HomePage() {
   }, [theme]);
 
   // --- CRUD Functions ---
+  const saveLocallyAndReset = (newDreamData) => {
+    const { dream } = createLocalDreamEntry(newDreamData);
+    setDreams((prev) => [dream, ...prev]);
+    setCurrentDream(INITIAL_DREAM_FORM);
+  };
+
   const addDream = async () => {
-    if (!user) return; 
-    if (currentDream.title.trim() && currentDream.content.trim()) {
-      const todayISO = new Date().toISOString().split('T')[0];
-      const newDreamData = {
-        ...currentDream,
-        date: todayISO,
-        tags: currentDream.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-      };
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/dreams`, {
-          method: 'POST',
-          body: JSON.stringify(newDreamData),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.token}`
-          }
-        });
-        const savedDream = await response.json();
-        if (response.ok) {
-          setDreams([savedDream, ...dreams]);
-          setCurrentDream({
-            title: '', content: '', category: 'normal', mood: 5,
-            tags: '', isLucid: false, isRecurring: false
-          });
+    if (!currentDream.title.trim() || !currentDream.content.trim()) return;
+
+    const todayISO = new Date().toISOString().split('T')[0];
+    const newDreamData = {
+      ...currentDream,
+      date: todayISO,
+      tags: currentDream.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+    };
+
+    if (!user || user.isLocal) {
+      saveLocallyAndReset(newDreamData);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dreams`, {
+        method: 'POST',
+        body: JSON.stringify(newDreamData),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
         }
-      } catch (err) {
-        console.error("Error creating dream:", err);
+      });
+
+      if (isUnavailableBackendResponse(response)) {
+        saveLocallyAndReset(newDreamData);
+        return;
       }
+
+      const savedDream = await response.json();
+      if (response.ok) {
+        setDreams([savedDream, ...dreams]);
+        setCurrentDream(INITIAL_DREAM_FORM);
+      }
+    } catch (err) {
+      saveLocallyAndReset(newDreamData);
     }
   };
 
   const deleteDream = async (id) => {
-    if (!user) return; 
+    if (!user || user.isLocal || String(id).startsWith('local_')) {
+      deleteLocalDream(id);
+      setDreams(dreams.filter(dream => dream._id !== id));
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/dreams/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${user.token}` }
       });
-      if (response.ok) {
+      if (isUnavailableBackendResponse(response) || response.ok) {
+        if (isUnavailableBackendResponse(response)) deleteLocalDream(id);
         setDreams(dreams.filter(dream => dream._id !== id));
       }
     } catch (err) {
-      console.error("Error deleting dream:", err);
+      deleteLocalDream(id);
+      setDreams(dreams.filter(dream => dream._id !== id));
     }
   };
 
@@ -221,7 +271,11 @@ function HomePage() {
     <div className="homepage-container">
       <header className="page-header">
         <h1>🌙 Dream Journal ✨</h1>
-        <p>Capture your dreams, discover their meanings</p>
+        <p>
+          {user && !user.isLocal
+            ? 'Capture your dreams, discover their meanings'
+            : 'Capture your dreams, discover their meanings (Local Device Archive)'}
+        </p>
         <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
           {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
         </button>

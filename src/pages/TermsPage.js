@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const TermsPage = () => {
   return (
@@ -74,7 +75,7 @@ const TermsPage = () => {
         <section>
           <h2>8. Governing Law & Contact</h2>
           <p>
-            These Terms shall be governed and construed in accordance with standard commercial regulations. If you have questions regarding these Terms, please contact us via our <a href="/contact">Contact Page</a>.
+            These Terms shall be governed and construed in accordance with standard commercial regulations. If you have questions regarding these Terms, please contact us via our <Link to="/contact">Contact Page</Link>.
           </p>
         </section>
       </div>

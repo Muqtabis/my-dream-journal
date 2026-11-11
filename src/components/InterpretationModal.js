@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { API_BASE_URL } from '../config';
+import { analyzeDreamDirectly } from '../utils/dreamAnalyzer';
+import { isUnavailableBackendResponse } from '../utils/localDreamStore';
 
 const InterpretationModal = ({ dreamContent, onClose }) => {
   const [interpretation, setInterpretation] = useState('');
@@ -9,33 +11,47 @@ const InterpretationModal = ({ dreamContent, onClose }) => {
   const { user } = useAuthContext();
 
   useEffect(() => {
+    const formatFallbackText = (analysis) => {
+      const psy = analysis?.psychology;
+      if (!psy) return 'Could not interpret dream.';
+      const symbolLines = (psy.keySymbols || [])
+        .map((s) => `• ${s.symbol}: ${s.meaning}`)
+        .join('\n');
+      const archetypeLines = (psy.archetypes || [])
+        .map((a) => `• ${a.name}: ${a.explanation}`)
+        .join('\n');
+      return `${psy.overview}\n\nArchetypes:\n${archetypeLines}\n\nKey Symbols:\n${symbolLines}`;
+    };
+
     const fetchInterpretation = async () => {
-      if (!user) {
-        setError('You must be logged in.');
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/interpret`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.token}`
-          },
-          body: JSON.stringify({ dreamContent })
-        });
+        if (user && !user.isLocal) {
+          const response = await fetch(`${API_BASE_URL}/api/ai/interpret`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ dreamContent })
+          });
 
-        const json = await response.json();
-
-        if (!response.ok) {
-          throw new Error(json.error || 'Failed to interpret dream');
+          if (!isUnavailableBackendResponse(response)) {
+            const json = await response.json();
+            if (response.ok && json.interpretation) {
+              setInterpretation(json.interpretation);
+              setError(null);
+              return;
+            }
+          }
         }
 
-        setInterpretation(json.interpretation);
+        const analysis = await analyzeDreamDirectly(dreamContent, 'Surrealism (Dalí)', 'Mysterious');
+        setInterpretation(formatFallbackText(analysis));
         setError(null);
       } catch (err) {
-        setError(err.message);
+        const analysis = await analyzeDreamDirectly(dreamContent, 'Surrealism (Dalí)', 'Mysterious');
+        setInterpretation(formatFallbackText(analysis));
+        setError(null);
       } finally {
         setIsLoading(false);
       }
@@ -55,7 +71,7 @@ const InterpretationModal = ({ dreamContent, onClose }) => {
             </div>
           )}
           {error && <div className="error">{error}</div>}
-          {interpretation && <p>{interpretation}</p>}
+          {interpretation && <p style={{ whiteSpace: 'pre-line' }}>{interpretation}</p>}
         </div>
         <div className="modal-actions">
           <button type="button" onClick={onClose} className="btn-primary">

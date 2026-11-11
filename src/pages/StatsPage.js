@@ -111,9 +111,6 @@ const StatsPage = () => {
     const lastYear = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
     const maxTagCount = tagFrequencies.length > 0 ? tagFrequencies[0].count : 1;
 
-    if (!user) {
-        return <div className="error-state container">Please log in to view your statistics.</div>;
-    }
     if (isLoading) {
         return <div className="loading-state container">Loading Dream Insights...</div>;
     }
@@ -125,7 +122,11 @@ const StatsPage = () => {
         <div className="stats-page-container container">
             <header className="page-header">
                 <h1>📊 Deep Dream Insights</h1>
-                <p>Analyzing your subconscious journey.</p>
+                <p>
+                    {user && !user.isLocal
+                        ? 'Analyzing your subconscious journey.'
+                        : 'Analyzing your saved dream insights on this device.'}
+                </p>
             </header>
 
             <section className="stats-content">

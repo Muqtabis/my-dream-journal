@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const PrivacyPolicyPage = () => {
   return (
@@ -78,7 +79,7 @@ const PrivacyPolicyPage = () => {
         <section>
           <h2>8. Contact Us</h2>
           <p>
-            If you have questions, feedback, or data requests regarding this Privacy Policy, please visit our <a href="/contact">Contact Page</a> or send an inquiry to our privacy team.
+            If you have questions, feedback, or data requests regarding this Privacy Policy, please visit our <Link to="/contact">Contact Page</Link> or send an inquiry to our privacy team.
           </p>
         </section>
       </div>

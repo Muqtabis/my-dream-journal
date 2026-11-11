@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -80,7 +81,7 @@ const ContactPage = () => {
           <div className="contact-faq-callout">
             <h4>💡 Quick Tip</h4>
             <p>
-              Looking for interpretation tips or privacy details? Check out our <a href="/about">About & Methodology</a> or our <a href="/privacy">Privacy Policy</a>.
+              Looking for interpretation tips or privacy details? Check out our <Link to="/about">About &amp; Methodology</Link> or our <Link to="/privacy">Privacy Policy</Link>.
             </p>
           </div>
         </div>

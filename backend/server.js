@@ -24,6 +24,19 @@ app.use('/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/ai', aiRoutes);
 
+// Contact form endpoint
+app.post(['/api/contact', '/contact'], (req, res) => {
+  const { name, email, inquiryType, subject, message } = req.body || {};
+  if (!name?.trim() || !email?.trim() || !subject?.trim() || !message?.trim()) {
+    return res.status(400).json({ error: 'All required fields must be filled.' });
+  }
+  console.log(`Contact submission [${inquiryType || 'General'}]: ${subject} from ${email}`);
+  return res.status(200).json({
+    success: true,
+    message: 'Your inquiry has been received.'
+  });
+});
+
 // Health check endpoint
 app.get(['/api/health', '/health'], (req, res) => {
   res.status(200).json({

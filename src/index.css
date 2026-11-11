@@ -937,6 +937,169 @@ div.error { padding: 10px; background: #ffefef; border: 1px solid #e7195a; color
   font-size: 0.78rem;
 }
 
+/* =================================================== */
+/* --- EDITORIAL DREAM GUIDE, ENCYCLOPEDIA & FAQ --- */
+/* =================================================== */
+.dream-guide-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin-top: 40px;
+}
+.guide-section-card {
+  background: var(--color-card-bg);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  padding: 35px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+.guide-section-header {
+  text-align: center;
+  max-width: 780px;
+  margin: 0 auto 28px auto;
+}
+.guide-section-header h2 {
+  font-size: 1.9rem;
+  margin-bottom: 10px;
+  color: var(--color-text);
+}
+.guide-section-header p {
+  opacity: 0.82;
+  line-height: 1.65;
+  font-size: 1rem;
+}
+.methodology-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.methodology-step-card {
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  padding: 22px;
+}
+.step-num {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--color-accent);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.methodology-step-card h3 {
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+  color: var(--color-text);
+}
+.methodology-step-card p {
+  font-size: 0.94rem;
+  line-height: 1.6;
+  opacity: 0.85;
+}
+.methodology-step-card a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.symbol-search-bar {
+  margin-top: 18px;
+}
+.symbol-search-bar input {
+  width: 100%;
+  max-width: 480px;
+  padding: 12px 18px;
+  border-radius: 25px;
+  border: 1px solid var(--color-border);
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+.symbol-search-bar input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+.encyclopedia-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+.encyclopedia-card {
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.encyclopedia-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.encyclopedia-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.encyclopedia-top h3 {
+  font-size: 1.08rem;
+  margin-bottom: 2px;
+}
+.encyclopedia-archetype {
+  font-size: 0.78rem;
+  color: var(--color-accent);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.encyclopedia-summary {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  opacity: 0.88;
+  margin-bottom: 10px;
+}
+.encyclopedia-reflection {
+  font-size: 0.85rem;
+  opacity: 0.78;
+  font-style: italic;
+  line-height: 1.5;
+}
+.faq-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.faq-item {
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.faq-item.open {
+  border-color: var(--color-accent);
+}
+.faq-question-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--color-text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 1.02rem;
+}
+.faq-answer {
+  padding: 0 20px 18px 20px;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  opacity: 0.85;
+}
+
 /* --- Responsive Layout for Mobile & Tablet --- */
 @media (max-width: 900px) {
   .visualizer-results-grid { grid-template-columns: 1fr; }

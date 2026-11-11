@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { API_BASE_URL } from '../config';
+import DreamGuideSection from '../components/DreamGuideSection';
 import {
   analyzeDreamDirectly,
   getSavedUserGeminiKey,
@@ -627,6 +628,14 @@ const VisualizerPage = () => {
           </div>
         </section>
       )}
+
+      {/* Rich Editorial Symbolism Guide & FAQ */}
+      <DreamGuideSection
+        onSelectPromptSample={(sample) => {
+          handleSampleClick(sample);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
     </div>
   );
 };
